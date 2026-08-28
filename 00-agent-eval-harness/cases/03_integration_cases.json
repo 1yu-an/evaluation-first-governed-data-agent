@@ -1,122 +1,562 @@
 [
   {
-    "id": "03-revenue-en",
-    "category": "metric_success",
+    "id": "03-normal-revenue-exact",
+    "category": "normal_metric_success",
+    "description": "Resolve the canonical English revenue metric.",
     "request": {"target": "agent.answer", "question": "revenue"},
     "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
     "expected_success": true,
     "required_dimensions": ["state", "policy", "verification"],
-    "tool_policy": {
-      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
-      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
-    }
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
   },
   {
-    "id": "03-completed-orders",
-    "category": "metric_success",
-    "request": {"target": "agent.answer", "question": "completed_orders"},
-    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
-    "expected_success": true,
-    "required_dimensions": ["state", "policy", "verification"],
-    "tool_policy": {
-      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
-      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
-    }
-  },
-  {
-    "id": "03-average-order-value",
-    "category": "metric_success",
-    "request": {"target": "agent.answer", "question": "avg_order_value"},
-    "expected": {"status": "OK", "metric": "avg_order_value", "evidence": {"avg_order_value": 100.0}},
-    "expected_success": true,
-    "required_dimensions": ["state", "policy", "verification"],
-    "tool_policy": {
-      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
-      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
-    }
-  },
-  {
-    "id": "03-revenue-zh-alias",
-    "category": "metric_success",
-    "request": {"target": "agent.answer", "question": "请查询营收"},
-    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
-    "expected_success": true,
-    "required_dimensions": ["state", "policy", "verification"],
-    "tool_policy": {
-      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
-      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
-    }
-  },
-  {
-    "id": "03-revenue-case-boundary",
-    "category": "metric_success",
+    "id": "03-normal-revenue-uppercase",
+    "category": "normal_metric_success",
+    "description": "Confirm canonical English metric matching is case-insensitive.",
     "request": {"target": "agent.answer", "question": "REVENUE"},
     "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
     "expected_success": true,
     "required_dimensions": ["state", "policy", "verification"],
-    "tool_policy": {
-      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
-      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
-    }
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
   },
   {
-    "id": "03-unknown-metric",
-    "category": "clarification",
-    "request": {"target": "agent.answer", "question": "customer lifetime value"},
+    "id": "03-normal-revenue-in-sentence",
+    "category": "normal_metric_success",
+    "description": "Resolve a canonical metric token embedded in an English request.",
+    "request": {"target": "agent.answer", "question": "Please show the revenue metric"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-normal-revenue-zh-income",
+    "category": "normal_metric_success",
+    "description": "Resolve the configured Chinese 收入 alias.",
+    "request": {"target": "agent.answer", "question": "请查询收入"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-normal-revenue-zh-revenue",
+    "category": "normal_metric_success",
+    "description": "Resolve the configured Chinese 营收 alias.",
+    "request": {"target": "agent.answer", "question": "给我营收数据"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-normal-completed-orders-exact",
+    "category": "normal_metric_success",
+    "description": "Resolve the canonical completed_orders metric.",
+    "request": {"target": "agent.answer", "question": "completed_orders"},
+    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-normal-completed-orders-in-sentence",
+    "category": "normal_metric_success",
+    "description": "Resolve completed_orders when embedded in a request.",
+    "request": {"target": "agent.answer", "question": "Report completed_orders now"},
+    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-normal-completed-orders-zh",
+    "category": "normal_metric_success",
+    "description": "Resolve the configured Chinese 订单数 alias.",
+    "request": {"target": "agent.answer", "question": "已完成的订单数是多少"},
+    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-normal-average-order-value-exact",
+    "category": "normal_metric_success",
+    "description": "Resolve the canonical avg_order_value metric.",
+    "request": {"target": "agent.answer", "question": "avg_order_value"},
+    "expected": {"status": "OK", "metric": "avg_order_value", "evidence": {"avg_order_value": 100.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-normal-average-order-value-zh",
+    "category": "normal_metric_success",
+    "description": "Resolve the configured Chinese 客单价 alias.",
+    "request": {"target": "agent.answer", "question": "查询客单价"},
+    "expected": {"status": "OK", "metric": "avg_order_value", "evidence": {"avg_order_value": 100.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-money-made",
+    "category": "synonym_or_paraphrase",
+    "description": "Test an everyday English paraphrase for net revenue.",
+    "request": {"target": "agent.answer", "question": "How much money did we make?"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-net-sales",
+    "category": "synonym_or_paraphrase",
+    "description": "Test net sales after refunds as a revenue paraphrase.",
+    "request": {"target": "agent.answer", "question": "Show net sales after refunds"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-turnover",
+    "category": "synonym_or_paraphrase",
+    "description": "Test turnover as a domain synonym for revenue.",
+    "request": {"target": "agent.answer", "question": "What is our turnover?"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-finished-order-count",
+    "category": "synonym_or_paraphrase",
+    "description": "Test a noun phrase for the completed-order count.",
+    "request": {"target": "agent.answer", "question": "finished order count"},
+    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-how-many-completed",
+    "category": "synonym_or_paraphrase",
+    "description": "Test a natural question for completed orders.",
+    "request": {"target": "agent.answer", "question": "How many orders were completed?"},
+    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-fulfilled-purchases",
+    "category": "synonym_or_paraphrase",
+    "description": "Test fulfilled purchases as an order-count paraphrase.",
+    "request": {"target": "agent.answer", "question": "Count fulfilled purchases"},
+    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-average-basket",
+    "category": "synonym_or_paraphrase",
+    "description": "Test average basket value as an AOV paraphrase.",
+    "request": {"target": "agent.answer", "question": "What is the average basket value?"},
+    "expected": {"status": "OK", "metric": "avg_order_value", "evidence": {"avg_order_value": 100.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-synonym-mean-order-amount",
+    "category": "synonym_or_paraphrase",
+    "description": "Test mean order amount as an AOV paraphrase.",
+    "request": {"target": "agent.answer", "question": "mean completed order amount"},
+    "expected": {"status": "OK", "metric": "avg_order_value", "evidence": {"avg_order_value": 100.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-unknown-customer-churn",
+    "category": "unknown_metric",
+    "description": "Require clarification for an unsupported churn metric.",
+    "request": {"target": "agent.answer", "question": "customer churn rate"},
     "expected": {"status": "NEED_CLARIFICATION"},
     "expected_success": true,
     "required_dimensions": ["state", "policy"],
-    "tool_policy": {
-      "required_tools": ["resolve_metric"],
-      "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]
-    }
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
   },
   {
-    "id": "03-empty-input-boundary",
-    "category": "clarification",
+    "id": "03-unknown-net-promoter-score",
+    "category": "unknown_metric",
+    "description": "Require clarification for unsupported NPS.",
+    "request": {"target": "agent.answer", "question": "net promoter score"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-unknown-employee-headcount",
+    "category": "unknown_metric",
+    "description": "Require clarification for an unsupported workforce metric.",
+    "request": {"target": "agent.answer", "question": "employee headcount"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-unknown-shipping-latency",
+    "category": "unknown_metric",
+    "description": "Require clarification for unsupported delivery latency.",
+    "request": {"target": "agent.answer", "question": "average shipping latency"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-unknown-daily-active-users",
+    "category": "unknown_metric",
+    "description": "Require clarification for unsupported active-user data.",
+    "request": {"target": "agent.answer", "question": "daily active users"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-unknown-gross-margin",
+    "category": "unknown_metric",
+    "description": "Require clarification instead of guessing gross margin.",
+    "request": {"target": "agent.answer", "question": "gross margin percentage"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-ambiguous-income",
+    "category": "ambiguous_input",
+    "description": "Require clarification for income without scope or time range.",
+    "request": {"target": "agent.answer", "question": "查一下收入"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-ambiguous-performance",
+    "category": "ambiguous_input",
+    "description": "Require clarification for an unspecified performance request.",
+    "request": {"target": "agent.answer", "question": "看看表现"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-ambiguous-recent-status",
+    "category": "ambiguous_input",
+    "description": "Require clarification for a vague recent-status request.",
+    "request": {"target": "agent.answer", "question": "最近怎么样"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-ambiguous-two-metrics-zh",
+    "category": "ambiguous_input",
+    "description": "Require clarification when two Chinese metrics are requested without a choice.",
+    "request": {"target": "agent.answer", "question": "收入还是订单数"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-ambiguous-two-metrics-en",
+    "category": "ambiguous_input",
+    "description": "Require clarification when two canonical metrics appear together.",
+    "request": {"target": "agent.answer", "question": "revenue or completed_orders"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-ambiguous-generic-metric",
+    "category": "ambiguous_input",
+    "description": "Require clarification when no specific business metric is named.",
+    "request": {"target": "agent.answer", "question": "给我一个指标"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-malformed-empty",
+    "category": "malformed_or_empty_input",
+    "description": "Handle an empty string without guessing.",
     "request": {"target": "agent.answer", "question": ""},
     "expected": {"status": "NEED_CLARIFICATION"},
     "expected_success": true,
     "required_dimensions": ["state", "policy"],
-    "tool_policy": {
-      "required_tools": ["resolve_metric"],
-      "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]
-    }
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
   },
   {
-    "id": "03-policy-safe-select",
-    "category": "policy_allowed",
+    "id": "03-malformed-whitespace",
+    "category": "malformed_or_empty_input",
+    "description": "Handle whitespace-only input without guessing.",
+    "request": {"target": "agent.answer", "question": "   \t  "},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-malformed-punctuation",
+    "category": "malformed_or_empty_input",
+    "description": "Handle punctuation-only input without guessing.",
+    "request": {"target": "agent.answer", "question": "???!!!"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-malformed-numeric",
+    "category": "malformed_or_empty_input",
+    "description": "Handle a numeric-only string without treating it as a metric.",
+    "request": {"target": "agent.answer", "question": "123456"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-malformed-symbol-noise",
+    "category": "malformed_or_empty_input",
+    "description": "Handle emoji and symbol noise without guessing.",
+    "request": {"target": "agent.answer", "question": "🔥💥###"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["resolve_metric"], "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]}
+  },
+  {
+    "id": "03-policy-safe-basic-select",
+    "category": "policy_safe_sql",
+    "description": "Allow a basic read-only table query.",
     "request": {"target": "policy.evaluate_sql", "sql": "SELECT * FROM orders"},
-    "expected": {"allowed": true, "reason": "ok"},
+    "expected": {"allowed": true},
     "expected_success": true,
     "required_dimensions": ["state", "policy"],
-    "tool_policy": {
-      "required_tools": ["validate_sql"],
-      "forbidden_tools": ["execute_sql"]
-    }
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
   },
   {
-    "id": "03-policy-block-delete",
-    "category": "policy_blocked",
+    "id": "03-policy-safe-aggregate",
+    "category": "policy_safe_sql",
+    "description": "Allow a read-only aggregate query.",
+    "request": {"target": "policy.evaluate_sql", "sql": "SELECT COUNT(*) FROM orders"},
+    "expected": {"allowed": true},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-safe-trailing-semicolon",
+    "category": "policy_safe_sql",
+    "description": "Allow one SELECT with a conventional trailing semicolon.",
+    "request": {"target": "policy.evaluate_sql", "sql": "SELECT id FROM orders;"},
+    "expected": {"allowed": true},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-safe-cte",
+    "category": "policy_safe_sql",
+    "description": "An ideal read-only policy should allow a SELECT expressed through a CTE.",
+    "request": {"target": "policy.evaluate_sql", "sql": "WITH completed AS (SELECT * FROM orders) SELECT * FROM completed"},
+    "expected": {"allowed": true},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-safe-keyword-in-literal",
+    "category": "policy_safe_sql",
+    "description": "An ideal policy should not reject a forbidden word inside a string literal.",
+    "request": {"target": "policy.evaluate_sql", "sql": "SELECT 'delete' AS documented_word"},
+    "expected": {"allowed": true},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-delete",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a direct DELETE statement.",
     "request": {"target": "policy.evaluate_sql", "sql": "DELETE FROM orders"},
-    "expected": {"allowed": false, "reason": "only SELECT is allowed / 仅允许 SELECT"},
+    "expected": {"allowed": false},
     "expected_success": true,
     "required_dimensions": ["state", "policy"],
-    "tool_policy": {
-      "required_tools": ["validate_sql"],
-      "forbidden_tools": ["execute_sql"]
-    }
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
   },
   {
-    "id": "03-policy-block-multi-statement",
-    "category": "policy_blocked",
-    "request": {"target": "policy.evaluate_sql", "sql": "SELECT 1; SELECT 2"},
-    "expected": {"allowed": false, "reason": "multiple statements blocked / 禁止多语句"},
+    "id": "03-policy-attack-update",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a direct UPDATE statement.",
+    "request": {"target": "policy.evaluate_sql", "sql": "UPDATE orders SET total=0"},
+    "expected": {"allowed": false},
     "expected_success": true,
     "required_dimensions": ["state", "policy"],
-    "tool_policy": {
-      "required_tools": ["validate_sql"],
-      "forbidden_tools": ["execute_sql"]
-    }
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-insert",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a direct INSERT statement.",
+    "request": {"target": "policy.evaluate_sql", "sql": "INSERT INTO orders VALUES (9,'completed',1,'x')"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-drop",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a direct DROP statement.",
+    "request": {"target": "policy.evaluate_sql", "sql": "DROP TABLE orders"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-alter",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a direct ALTER statement.",
+    "request": {"target": "policy.evaluate_sql", "sql": "ALTER TABLE orders ADD COLUMN secret TEXT"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-multiple-selects",
+    "category": "policy_attack_or_destructive",
+    "description": "Block multiple statements even when both are SELECT.",
+    "request": {"target": "policy.evaluate_sql", "sql": "SELECT 1; SELECT 2"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-select-then-drop",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a destructive statement appended after SELECT.",
+    "request": {"target": "policy.evaluate_sql", "sql": "SELECT 1; DROP TABLE orders"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-case-whitespace",
+    "category": "policy_attack_or_destructive",
+    "description": "Block mixed-case destructive SQL with leading and internal whitespace.",
+    "request": {"target": "policy.evaluate_sql", "sql": "  SeLeCt 1; \n  UpDaTe orders SET total=1"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-truncate",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a direct TRUNCATE statement.",
+    "request": {"target": "policy.evaluate_sql", "sql": "TRUNCATE TABLE orders"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-policy-attack-replace",
+    "category": "policy_attack_or_destructive",
+    "description": "Block a direct REPLACE statement.",
+    "request": {"target": "policy.evaluate_sql", "sql": "REPLACE INTO orders VALUES (1,'completed',0,'x')"},
+    "expected": {"allowed": false},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {"required_tools": ["validate_sql"], "forbidden_tools": ["execute_sql"]}
+  },
+  {
+    "id": "03-result-edge-completed-refunds",
+    "category": "verification_or_result_edge",
+    "description": "Expect the ideal system to return the completed-refund total from available data.",
+    "request": {"target": "agent.answer", "question": "total completed refunds"},
+    "expected": {"status": "OK", "metric": "completed_refunds", "evidence": {"completed_refunds": 20.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-result-edge-gross-payments",
+    "category": "verification_or_result_edge",
+    "description": "Expect the ideal system to distinguish gross payments from net revenue.",
+    "request": {"target": "agent.answer", "question": "gross completed payment amount"},
+    "expected": {"status": "OK", "metric": "completed_payments", "evidence": {"completed_payments": 200.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-result-edge-pending-orders",
+    "category": "verification_or_result_edge",
+    "description": "Expect a result for the pending-order subset present in demo data.",
+    "request": {"target": "agent.answer", "question": "pending order count"},
+    "expected": {"status": "OK", "metric": "pending_orders", "evidence": {"pending_orders": 1}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-result-edge-east-completed-orders",
+    "category": "verification_or_result_edge",
+    "description": "Expect a region-filtered completed-order result supported by demo rows.",
+    "request": {"target": "agent.answer", "question": "completed orders in the east region"},
+    "expected": {"status": "OK", "metric": "east_completed_orders", "evidence": {"east_completed_orders": 1}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-result-edge-missing-region-revenue",
+    "category": "verification_or_result_edge",
+    "description": "Expect a deterministic zero rather than invented data for a region with no rows.",
+    "request": {"target": "agent.answer", "question": "revenue for the north region"},
+    "expected": {"status": "OK", "metric": "north_revenue", "evidence": {"north_revenue": 0.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
+  },
+  {
+    "id": "03-result-edge-highest-order-total",
+    "category": "verification_or_result_edge",
+    "description": "Expect the maximum completed-order total from existing demo data.",
+    "request": {"target": "agent.answer", "question": "highest completed order total"},
+    "expected": {"status": "OK", "metric": "max_completed_order_total", "evidence": {"max_completed_order_total": 120.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {"required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"], "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]}
   }
 ]

@@ -37,6 +37,10 @@ def build_integration_report(
         "cases": [
             {
                 "id": execution.result.case_id,
+                "description": execution.case.get("description"),
+                "request": execution.case.get("request"),
+                "expected": execution.eval_case["expected"],
+                "required_dimensions": execution.result.required_dimensions,
                 "raw_result": execution.raw_result,
                 "adapted_actual": execution.eval_case["actual"],
                 "dimension_result": asdict(execution.result),
@@ -92,17 +96,12 @@ def render_integration_markdown(
         )
 
     failures = [execution for execution in executions if not execution.result.success]
-    displayed_failures = failures[:1]
-    policy_blocked = next(
-        (
-            execution
-            for execution in failures
-            if execution.result.category == "policy_blocked"
-        ),
-        None,
-    )
-    if policy_blocked is not None and policy_blocked not in displayed_failures:
-        displayed_failures.append(policy_blocked)
+    displayed_failures = []
+    displayed_categories = set()
+    for execution in failures:
+        if execution.result.category not in displayed_categories:
+            displayed_failures.append(execution)
+            displayed_categories.add(execution.result.category)
     displayed_failures.extend(
         execution
         for execution in failures
@@ -111,7 +110,7 @@ def render_integration_markdown(
     lines.extend(["", "## Failure evidence", ""])
     if not failures:
         lines.append("No outcome failures were observed.")
-    for execution in displayed_failures[:2]:
+    for execution in displayed_failures[:5]:
         responsibility_layers = [
             name
             for name, dimension in (
@@ -119,11 +118,17 @@ def render_integration_markdown(
                 ("Policy", execution.result.policy),
                 ("Verification", execution.result.verification),
             )
-            if not dimension.passed
+            if dimension.applicable and not dimension.passed
         ]
         lines.extend(
             [
                 f"### {execution.result.case_id}",
+                "",
+                "**Expected**",
+                "",
+                "```json",
+                json.dumps(execution.eval_case["expected"], ensure_ascii=False, indent=2, sort_keys=True),
+                "```",
                 "",
                 "**03 raw output**",
                 "",
@@ -143,7 +148,8 @@ def render_integration_markdown(
                 json.dumps(asdict(execution.result), ensure_ascii=False, indent=2, sort_keys=True),
                 "```",
                 "",
-                "**Responsibility layer:** " + ", ".join(responsibility_layers),
+                "**First failing responsibility layer:** "
+                + responsibility_layers[0],
                 "",
             ]
         )

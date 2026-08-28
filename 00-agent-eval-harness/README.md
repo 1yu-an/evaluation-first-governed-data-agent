@@ -51,7 +51,7 @@ The generated `reports/` directory is reproducible and ignored by Git.
 
 ## Project 03 Integration Benchmark / 03 系统集成基准
 
-Run the real project 03 runtime against the fixed 10-case integration set:
+Run the real project 03 runtime against the fixed 56-case integration set:
 
 ```bash
 python3 -m src.integration_benchmark
@@ -77,6 +77,9 @@ The two benchmark types answer different questions:
 
 Do not combine or compare these percentages as if they described the same
 population.
+
+The current measured 03 Baseline v0, category breakdown, and representative Bad
+Cases are documented in `../03-governed-mysql-data-agent/BASELINE_V0.md`.
 
 ## Markdown report / Markdown 报告
 

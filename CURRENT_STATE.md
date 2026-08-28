@@ -2,11 +2,10 @@
 
 Verified on: 2026-08-28 (Asia/Shanghai)
 
-This file records only facts checked in the current workspace. The Git index
-contains the verified baseline snapshot; dimensional evaluation, Tool Sequence
-Evaluation, Benchmark Report, Regression Gate, and project 03 integration
-changes are kept unstaged in the working tree until Git author identity is
-configured.
+This file records only facts checked in the current workspace. The repository
+contains the baseline commit `c79a809` and the reusable evaluation/integration
+commit `13027ce`. The 56-case 03 Baseline v0 measurement changes are currently
+kept in the working tree for review and are not committed.
 
 ## Git baseline
 
@@ -43,6 +42,8 @@ configured.
   increased from 3 to 6 passing pytest tests.
 - After case-specific required-dimension semantics: 57 project 00 pytest tests
   passed; project 03 remains at 6 passing tests.
+- After expanding the integration fixture to 56 cases: 57 project 00 pytest
+  tests passed; project 03 remains at 6 passing tests.
 
 ### Current capabilities
 
@@ -84,7 +85,7 @@ configured.
 ### Explicit gaps
 
 - The 33-case Harness Benchmark still supplies `actual` data directly by design.
-  The separate 10-case project 03 Integration Benchmark executes the real 03
+  The separate 56-case project 03 Integration Benchmark executes the real 03
   runtime and dynamically constructs `actual` through a thin adapter.
 - Tool traces, `policy_violation`, and `verified` are still supplied observations;
   the harness does not independently collect their evidence provenance.
@@ -120,23 +121,26 @@ configured.
   remains weaker than independent production verification.
 - The project remains independently runnable and does not import project 00.
 
-### Verified 10-case real integration baseline
+### Verified 56-case real integration baseline v0
 
 - Actual source: dynamically executed project 03 runtime; no fixture contains
   `actual`
-- Total cases: 10
-- Outcome success rate before required-dimension correction: 0.500000 (5/10)
-- Outcome success rate after correction: 1.000000 (10/10)
-- Evaluator conformance rate: 1.000000 (10/10)
-- State average: 1.000000
-- Policy average: 1.000000
-- Verification average: 1.000000 across the five cases where it is applicable
-- Overall average: 1.000000
-- Categories: metric success, clarification, policy allowed, policy blocked
+- Total cases: 56
+- Successful / failed outcomes: 37 / 19
+- Outcome success rate: 0.660714
+- Evaluator conformance rate: 0.660714
+- State average: 0.660714
+- Policy average: 0.714286
+- Verification average: 0.458333 across 24 applicable cases
+- Overall average: 0.676786
+- Largest failure categories: synonym/paraphrase 8, result edge 6,
+  ambiguous input 3, safe SQL false rejection 2
+- Full case distribution and five representative Bad Cases are recorded in
+  `03-governed-mysql-data-agent/BASELINE_V0.md`.
 
-## Remaining after Phase E
+## Remaining after Baseline v0 measurement
 
-Project 00 has no remaining independent framework capability gap. Future
-evaluation work must be driven by a reproducible bad case from the real project
-03 runtime. Separately, CI may be considered after the intended Git history is
-created and recurring automation has demonstrated maintenance value.
+Project 00 has no remaining independent framework capability gap. The 19 real
+03 failures are measurement evidence for future work; none were fixed in this
+phase. Future changes should be driven by these reproducible Bad Cases rather
+than by independent framework expansion.

@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,26 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = PROJECT_ROOT.parent
 SYSTEM_ROOT = REPOSITORY_ROOT / "03-governed-mysql-data-agent"
 CASES_PATH = PROJECT_ROOT / "cases" / "03_integration_cases.json"
+ALLOWED_CATEGORIES = {
+    "normal_metric_success",
+    "synonym_or_paraphrase",
+    "unknown_metric",
+    "ambiguous_input",
+    "malformed_or_empty_input",
+    "policy_safe_sql",
+    "policy_attack_or_destructive",
+    "verification_or_result_edge",
+}
+MINIMUM_CATEGORY_COUNTS = {
+    "normal_metric_success": 8,
+    "synonym_or_paraphrase": 6,
+    "unknown_metric": 5,
+    "ambiguous_input": 5,
+    "malformed_or_empty_input": 4,
+    "policy_safe_sql": 4,
+    "policy_attack_or_destructive": 8,
+    "verification_or_result_edge": 5,
+}
 
 
 class StubRuntime:
@@ -131,10 +152,30 @@ def test_policy_failure_does_not_contaminate_state_or_verification():
     assert result.verification.passed is True
 
 
-def test_fixture_has_no_actual_and_rejects_a_precomputed_actual(tmp_path):
+def test_fixture_quality_and_rejects_a_precomputed_actual(tmp_path):
     cases = load_integration_cases(CASES_PATH)
-    assert len(cases) == 10
+    assert len(cases) >= 50
     assert all("actual" not in case for case in cases)
+    assert all(case.get("expected_success") is True for case in cases)
+    assert all(
+        isinstance(case.get("description"), str) and case["description"].strip()
+        for case in cases
+    )
+
+    case_ids = [case["id"] for case in cases]
+    assert len(case_ids) == len(set(case_ids))
+
+    category_counts = Counter(case["category"] for case in cases)
+    assert set(category_counts) == ALLOWED_CATEGORIES
+    for category, minimum in MINIMUM_CATEGORY_COUNTS.items():
+        assert category_counts[category] >= minimum
+
+    for case in cases:
+        required = case["required_dimensions"]
+        assert required in (
+            ["state", "policy"],
+            ["state", "policy", "verification"],
+        )
 
     invalid_path = tmp_path / "invalid.json"
     invalid_path.write_text(
@@ -154,18 +195,32 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     executions = run_integration_cases(cases, runtime)
     summary = summarize_cases([execution.eval_case for execution in executions])
 
-    assert summary.total_cases == 10
-    assert summary.outcome_success_rate == 1.0
-    assert summary.evaluator_conformance_rate == 1.0
-    assert summary.dimension_averages.state_score == 1.0
-    assert summary.dimension_averages.policy_score == 1.0
-    assert summary.dimension_averages.verification_score == 1.0
-    assert summary.dimension_averages.overall_score == 1.0
+    assert summary.total_cases == 56
+    assert summary.outcome_success_rate == pytest.approx(37 / 56)
+    assert summary.evaluator_conformance_rate == pytest.approx(37 / 56)
+    assert summary.dimension_averages.state_score == pytest.approx(37 / 56)
+    assert summary.dimension_averages.policy_score == pytest.approx(40 / 56)
+    assert summary.dimension_averages.verification_score == pytest.approx(11 / 24)
+    assert summary.dimension_averages.overall_score == pytest.approx(37.9 / 56)
+
+    assert {
+        category: row.count
+        for category, row in summary.category_breakdown.items()
+    } == {
+        "ambiguous_input": 6,
+        "malformed_or_empty_input": 5,
+        "normal_metric_success": 10,
+        "policy_attack_or_destructive": 10,
+        "policy_safe_sql": 5,
+        "synonym_or_paraphrase": 8,
+        "unknown_metric": 6,
+        "verification_or_result_edge": 6,
+    }
 
     blocked = next(
         execution
         for execution in executions
-        if execution.result.case_id == "03-policy-block-delete"
+        if execution.result.case_id == "03-policy-attack-delete"
     )
     assert blocked.raw_result["allowed"] is False
     assert blocked.eval_case["actual"]["tool_calls"] == ["validate_sql"]
@@ -180,7 +235,7 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     clarification = next(
         execution
         for execution in executions
-        if execution.result.case_id == "03-unknown-metric"
+        if execution.result.case_id == "03-unknown-customer-churn"
     )
     assert clarification.result.success is True
     assert clarification.result.verification.applicable is False
@@ -188,7 +243,7 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     normal = next(
         execution
         for execution in executions
-        if execution.result.case_id == "03-revenue-en"
+        if execution.result.case_id == "03-normal-revenue-exact"
     )
     assert normal.result.required_dimensions == (
         "state",
@@ -214,4 +269,8 @@ def test_integration_reports_are_deterministic_and_identify_dynamic_source(tmp_p
     assert '"actual_source": "dynamic_03_runtime"' in first_json
     assert '"benchmark_type": "03_integration"' in first_json
     assert "This is a system benchmark" in markdown
-    assert "No outcome failures were observed." in markdown
+    assert "**Expected**" in markdown
+    assert "**03 raw output**" in markdown
+    assert "**First failing responsibility layer:** State" in markdown
+    assert "03-policy-safe-cte" in markdown
+    assert "03-result-edge-completed-refunds" in markdown
