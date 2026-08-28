@@ -9,8 +9,11 @@ def main(path: str, report_path: str | None = None) -> int:
     cases = json.loads(Path(path).read_text(encoding="utf-8"))
     results = [evaluate(c) for c in cases]
     for r in results:
-        print(f"{r.case_id}: score={r.score:.1f} success={r.success} reason={r.reason}")
-    avg = sum(r.score for r in results) / max(1, len(results))
+        print(
+            f"{r.case_id}: score={r.overall_score:.1f} "
+            f"success={r.success} reason={r.reason}"
+        )
+    avg = sum(r.overall_score for r in results) / max(1, len(results))
     print(f"Average score / 平均分: {avg:.2f}")
     if report_path:
         report_file = Path(report_path)

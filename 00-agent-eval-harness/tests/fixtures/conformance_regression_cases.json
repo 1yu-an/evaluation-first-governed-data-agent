@@ -1,0 +1,16 @@
+[
+  {
+    "id": "control-conforming",
+    "category": "deliberate_regression_fixture",
+    "expected_success": true,
+    "expected": {"status": "complete"},
+    "actual": {"status": "complete", "verified": true}
+  },
+  {
+    "id": "simulated-wrong-verdict",
+    "category": "deliberate_regression_fixture",
+    "expected_success": false,
+    "expected": {"status": "complete"},
+    "actual": {"status": "complete", "verified": true}
+  }
+]

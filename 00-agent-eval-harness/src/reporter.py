@@ -15,7 +15,7 @@ def render_markdown_report(results: Iterable[EvalResult], title: str = "Agent Ev
     total = len(result_list)
     passed = sum(1 for result in result_list if result.success)
     failed = total - passed
-    average = sum(result.score for result in result_list) / max(1, total)
+    average = sum(result.overall_score for result in result_list) / max(1, total)
     failed_results = [result for result in result_list if not result.success]
 
     lines = [
@@ -30,8 +30,8 @@ def render_markdown_report(results: Iterable[EvalResult], title: str = "Agent Ev
         "",
         "## Cases",
         "",
-        "| case_id | score | success | reason |",
-        "|---|---:|:---:|---|",
+        "| case_id | category | score | success | reason |",
+        "|---|---|---:|:---:|---|",
     ]
 
     for result in result_list:
@@ -40,7 +40,8 @@ def render_markdown_report(results: Iterable[EvalResult], title: str = "Agent Ev
             + " | ".join(
                 [
                     _escape_markdown_table_cell(result.case_id),
-                    f"{result.score:.1f}",
+                    _escape_markdown_table_cell(result.category),
+                    f"{result.overall_score:.1f}",
                     str(result.success),
                     _escape_markdown_table_cell(result.reason),
                 ]
@@ -48,13 +49,47 @@ def render_markdown_report(results: Iterable[EvalResult], title: str = "Agent Ev
             + " |"
         )
 
+    lines.extend(
+        [
+            "",
+            "## Dimension details",
+            "",
+            "| case_id | dimension | applicable | score | passed | reason |",
+            "|---|---|:---:|---:|:---:|---|",
+        ]
+    )
+
+    for result in result_list:
+        for dimension_name, dimension in (
+            ("state", result.state),
+            ("policy", result.policy),
+            ("verification", result.verification),
+        ):
+            score = f"{dimension.score:.1f}" if dimension.applicable else "N/A"
+            passed = str(dimension.passed) if dimension.applicable else "N/A"
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        _escape_markdown_table_cell(result.case_id),
+                        dimension_name,
+                        str(dimension.applicable),
+                        score,
+                        passed,
+                        _escape_markdown_table_cell(dimension.reason),
+                    ]
+                )
+                + " |"
+            )
+
     lines.extend(["", "## Failed cases", ""])
 
     if failed_results:
         for result in failed_results:
             lines.append(
                 f"- `{_escape_markdown_table_cell(result.case_id)}`: "
-                f"score={result.score:.1f}, reason={_escape_markdown_table_cell(result.reason)}"
+                f"score={result.overall_score:.1f}, "
+                f"reason={_escape_markdown_table_cell(result.reason)}"
             )
     else:
         lines.append("None")

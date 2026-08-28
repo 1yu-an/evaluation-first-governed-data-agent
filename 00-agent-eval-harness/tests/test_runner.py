@@ -41,7 +41,7 @@ def test_runner_returns_zero_when_all_cases_pass(tmp_path):
     assert "- Total cases: 1" in report
     assert "- Passed: 1" in report
     assert "- Failed: 0" in report
-    assert "| pass | 1.0 | True | pass / 通过 |" in report
+    assert "| pass | uncategorized | 1.0 | True | pass / 通过 |" in report
 
 
 def test_runner_returns_two_when_any_case_fails(tmp_path):

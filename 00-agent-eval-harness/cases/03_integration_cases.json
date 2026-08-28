@@ -1,0 +1,122 @@
+[
+  {
+    "id": "03-revenue-en",
+    "category": "metric_success",
+    "request": {"target": "agent.answer", "question": "revenue"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {
+      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
+      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
+    }
+  },
+  {
+    "id": "03-completed-orders",
+    "category": "metric_success",
+    "request": {"target": "agent.answer", "question": "completed_orders"},
+    "expected": {"status": "OK", "metric": "completed_orders", "evidence": {"completed_orders": 2}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {
+      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
+      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
+    }
+  },
+  {
+    "id": "03-average-order-value",
+    "category": "metric_success",
+    "request": {"target": "agent.answer", "question": "avg_order_value"},
+    "expected": {"status": "OK", "metric": "avg_order_value", "evidence": {"avg_order_value": 100.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {
+      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
+      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
+    }
+  },
+  {
+    "id": "03-revenue-zh-alias",
+    "category": "metric_success",
+    "request": {"target": "agent.answer", "question": "请查询营收"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {
+      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
+      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
+    }
+  },
+  {
+    "id": "03-revenue-case-boundary",
+    "category": "metric_success",
+    "request": {"target": "agent.answer", "question": "REVENUE"},
+    "expected": {"status": "OK", "metric": "revenue", "evidence": {"revenue": 180.0}},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy", "verification"],
+    "tool_policy": {
+      "required_tools": ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
+      "tool_order": [["resolve_metric", "validate_sql"], ["validate_sql", "execute_sql"], ["execute_sql", "verify_evidence"]]
+    }
+  },
+  {
+    "id": "03-unknown-metric",
+    "category": "clarification",
+    "request": {"target": "agent.answer", "question": "customer lifetime value"},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {
+      "required_tools": ["resolve_metric"],
+      "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]
+    }
+  },
+  {
+    "id": "03-empty-input-boundary",
+    "category": "clarification",
+    "request": {"target": "agent.answer", "question": ""},
+    "expected": {"status": "NEED_CLARIFICATION"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {
+      "required_tools": ["resolve_metric"],
+      "forbidden_tools": ["validate_sql", "execute_sql", "verify_evidence"]
+    }
+  },
+  {
+    "id": "03-policy-safe-select",
+    "category": "policy_allowed",
+    "request": {"target": "policy.evaluate_sql", "sql": "SELECT * FROM orders"},
+    "expected": {"allowed": true, "reason": "ok"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {
+      "required_tools": ["validate_sql"],
+      "forbidden_tools": ["execute_sql"]
+    }
+  },
+  {
+    "id": "03-policy-block-delete",
+    "category": "policy_blocked",
+    "request": {"target": "policy.evaluate_sql", "sql": "DELETE FROM orders"},
+    "expected": {"allowed": false, "reason": "only SELECT is allowed / 仅允许 SELECT"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {
+      "required_tools": ["validate_sql"],
+      "forbidden_tools": ["execute_sql"]
+    }
+  },
+  {
+    "id": "03-policy-block-multi-statement",
+    "category": "policy_blocked",
+    "request": {"target": "policy.evaluate_sql", "sql": "SELECT 1; SELECT 2"},
+    "expected": {"allowed": false, "reason": "multiple statements blocked / 禁止多语句"},
+    "expected_success": true,
+    "required_dimensions": ["state", "policy"],
+    "tool_policy": {
+      "required_tools": ["validate_sql"],
+      "forbidden_tools": ["execute_sql"]
+    }
+  }
+]
