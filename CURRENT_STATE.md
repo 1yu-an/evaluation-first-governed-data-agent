@@ -3,9 +3,9 @@
 Verified on: 2026-08-28 (Asia/Shanghai)
 
 This file records only facts checked in the current workspace. The repository
-contains the baseline commit `c79a809` and the reusable evaluation/integration
-commit `13027ce`. The 56-case 03 Baseline v0 measurement changes are currently
-kept in the working tree for review and are not committed.
+contains the baseline commit `c79a809`, the reusable evaluation/integration
+commit `13027ce`, and the frozen 56-case Baseline v0 commit `e2e26c9`. Phase F2
+risk-analysis documentation is currently kept in the working tree for review.
 
 ## Git baseline
 
@@ -144,3 +144,10 @@ Project 00 has no remaining independent framework capability gap. The 19 real
 03 failures are measurement evidence for future work; none were fixed in this
 phase. Future changes should be driven by these reproducible Bad Cases rather
 than by independent framework expansion.
+
+Risk analysis classifies the 19 failures as 13 SAFE_FAILURE, 4 FALSE_SUCCESS,
+2 OVER_BLOCK, 0 UNSAFE_ALLOW, and 0 OTHER. Resolver/Semantic is the primary
+responsibility layer for 17; Policy is primary for 2; Verification contributes
+to all 4 FALSE_SUCCESS cases by accepting result shape without full request
+agreement. Full reasoning and priorities are in
+`03-governed-mysql-data-agent/BASELINE_V0.md`.
