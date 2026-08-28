@@ -1,0 +1,4 @@
+在这个函数执行的过程中，需要参数 client。具体步骤如下：
+1. 去 fixture 池里面寻找 client；
+2. 将找到的 client 函数执行后的返回值，加载进 client 参数里面；
+3. 将其带入 test_chat 函数，让 test_chat 函数真正执行。

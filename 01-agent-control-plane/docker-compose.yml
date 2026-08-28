@@ -1,0 +1,16 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: agentcp
+      MYSQL_ROOT_PASSWORD: root
+    ports: ["3306:3306"]
+  app:
+    build: .
+    depends_on: [mysql]
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql
+      MYSQL_URL: jdbc:mysql://mysql:3306/agentcp
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    ports: ["8080:8080"]

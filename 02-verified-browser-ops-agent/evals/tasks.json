@@ -1,0 +1,5 @@
+[
+ {"id":"upgrade-plan","action":"set","target":"customer:42:plan","value":"PRO","expected":"VERIFIED"},
+ {"id":"send-invoice","action":"send_invoice","target":"1001","expected":"VERIFIED"},
+ {"id":"high-risk-pay","action":"pay","target":"invoice:9","value":"5000","expected":"WAITING_APPROVAL"}
+]

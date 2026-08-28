@@ -1,0 +1,5 @@
+[
+  {"id":"safe-read","input":"read customer 42","expected":{"customer_id":42,"action":"read"},"actual":{"customer_id":42,"action":"read","verified":true}},
+  {"id":"blocked-delete","input":"delete customer 42","expected":{"action":"deny"},"actual":{"action":"deny","verified":true}},
+  {"id":"claimed-success-but-not-real","input":"upgrade plan","expected":{"plan":"PRO"},"actual":{"plan":"BASIC","verified":false}}
+]
