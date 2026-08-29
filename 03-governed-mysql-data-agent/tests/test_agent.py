@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.agent import DataAgent
 from src.demo import initialize_demo
@@ -17,7 +18,13 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(result["evidence"], {"revenue": 180.0})
         self.assertEqual(
             result["trace"],
-            ["resolve_metric", "validate_sql", "execute_sql", "verify_evidence"],
+            [
+                "resolve_metric",
+                "compile_query",
+                "validate_sql",
+                "execute_sql",
+                "verify_evidence",
+            ],
         )
         self.assertEqual(
             result["verification"],
@@ -31,6 +38,24 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(result["status"], "NEED_CLARIFICATION")
         self.assertEqual(result["trace"], ["resolve_metric"])
         self.assertNotIn("verified", result)
+
+    def test_compiled_query_is_policy_checked_before_database_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db_path = Path(directory) / "must-not-be-opened.db"
+            with patch(
+                "src.agent.validate_sql", return_value=(False, "test block")
+            ) as validate:
+                result = DataAgent(db_path).answer(
+                    "revenue for the south region"
+                )
+
+            validate.assert_called_once_with(result["sql"])
+            self.assertEqual(result["status"], "BLOCKED")
+            self.assertEqual(
+                result["trace"],
+                ["resolve_metric", "compile_query", "validate_sql"],
+            )
+            self.assertFalse(db_path.exists())
 
 
 if __name__ == "__main__":

@@ -5,15 +5,12 @@ from dataclasses import asdict, dataclass
 METRICS = {
     "revenue": {
         "description": "Completed payment amount minus completed refunds / 已完成付款减已完成退款",
-        "sql": "SELECT ROUND(COALESCE((SELECT SUM(amount) FROM payments WHERE status='completed'),0) - COALESCE((SELECT SUM(amount) FROM refunds WHERE status='completed'),0),2) AS revenue",
     },
     "completed_orders": {
         "description": "Count of completed orders / 已完成订单数量",
-        "sql": "SELECT COUNT(*) AS completed_orders FROM orders WHERE status='completed'",
     },
     "avg_order_value": {
         "description": "Average total for completed orders / 已完成订单平均客单价",
-        "sql": "SELECT ROUND(AVG(total),2) AS avg_order_value FROM orders WHERE status='completed'",
     },
 }
 
@@ -28,8 +25,12 @@ ALIASES = {
 }
 UNSPECIFIED_SCOPE_MARKERS = ("一下",)
 REGION_PATTERNS = (
-    re.compile(r"\b(east|west|north|south)\s+region\b", re.I),
-    re.compile(r"\bregion\s+(east|west|north|south)\b", re.I),
+    re.compile(r"\b([a-z][a-z0-9_-]*)\s+region\b", re.I),
+    re.compile(r"\bregion\s+([a-z][a-z0-9_-]*)\b", re.I),
+)
+STATUS_PATTERNS = (
+    re.compile(r"\bstatus\s*(?:=|is)?\s*([a-z][a-z0-9_-]*)\b", re.I),
+    re.compile(r"\b([a-z][a-z0-9_-]*)\s+status\b", re.I),
 )
 
 
@@ -57,11 +58,18 @@ def _metric_candidates(question: str) -> list[str]:
 
 
 def _filters(question: str) -> dict[str, str]:
+    filters = {}
     for pattern in REGION_PATTERNS:
         match = pattern.search(question)
         if match:
-            return {"region": match.group(1).lower()}
-    return {}
+            filters["region"] = match.group(1).lower()
+            break
+    for pattern in STATUS_PATTERNS:
+        match = pattern.search(question)
+        if match:
+            filters["status"] = match.group(1).lower()
+            break
+    return filters
 
 
 def _scope_is_ambiguous(question: str) -> bool:
@@ -98,17 +106,9 @@ def build_semantic_plan(question: str) -> SemanticPlan:
             reason="query scope requires clarification / 查询范围需要澄清",
         )
 
-    if filters:
-        return SemanticPlan(
-            metric=metric,
-            filters=filters,
-            status=PLAN_NEEDS_CLARIFICATION,
-            reason="recognized filters are not yet executable / 已识别过滤条件暂不可执行",
-        )
-
     return SemanticPlan(
         metric=metric,
-        filters={},
+        filters=filters,
         status=PLAN_READY,
         reason="ready / 可执行",
     )

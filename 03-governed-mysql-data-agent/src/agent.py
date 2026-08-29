@@ -1,6 +1,7 @@
 import sqlite3
 from contextlib import closing
 
+from .compiler import CompileError, compile_plan
 from .semantic import METRICS, PLAN_READY, build_semantic_plan
 from .policy import validate_sql
 
@@ -29,7 +30,18 @@ class DataAgent:
             }
 
         metric = plan.metric
-        sql = METRICS[metric]["sql"]
+        trace.append("compile_query")
+        try:
+            compiled = compile_plan(plan)
+        except CompileError as error:
+            return {
+                "status": "NEED_CLARIFICATION",
+                "reason": str(error),
+                "semantic_plan": plan.to_dict(),
+                "trace": trace,
+            }
+
+        sql = compiled.sql
         trace.append("validate_sql")
         ok, reason = validate_sql(sql)
         if not ok:
@@ -45,16 +57,19 @@ class DataAgent:
         trace.append("execute_sql")
         with closing(sqlite3.connect(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(sql).fetchone()
+            row = conn.execute(sql, compiled.params).fetchone()
         evidence = dict(row) if row is not None else {}
-        verification = _verify_metric_evidence(metric, evidence)
+        if compiled.result_metric != metric and metric in evidence:
+            evidence = {compiled.result_metric: evidence[metric]}
+        verification = _verify_metric_evidence(compiled.result_metric, evidence)
         trace.append("verify_evidence")
         return {
             "status": "OK",
-            "metric": metric,
+            "metric": compiled.result_metric,
             "semantic_plan": plan.to_dict(),
             "definition": METRICS[metric]["description"],
             "sql": sql,
+            "params": list(compiled.params),
             "evidence": evidence,
             "policy_allowed": True,
             "policy_reason": reason,

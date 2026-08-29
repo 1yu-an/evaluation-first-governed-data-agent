@@ -196,12 +196,12 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     summary = summarize_cases([execution.eval_case for execution in executions])
 
     assert summary.total_cases == 56
-    assert summary.outcome_success_rate == pytest.approx(42 / 56)
-    assert summary.evaluator_conformance_rate == pytest.approx(42 / 56)
-    assert summary.dimension_averages.state_score == pytest.approx(42 / 56)
-    assert summary.dimension_averages.policy_score == pytest.approx(42 / 56)
-    assert summary.dimension_averages.verification_score == pytest.approx(10 / 24)
-    assert summary.dimension_averages.overall_score == pytest.approx(42 / 56)
+    assert summary.outcome_success_rate == pytest.approx(43 / 56)
+    assert summary.evaluator_conformance_rate == pytest.approx(43 / 56)
+    assert summary.dimension_averages.state_score == pytest.approx(43 / 56)
+    assert summary.dimension_averages.policy_score == pytest.approx(43 / 56)
+    assert summary.dimension_averages.verification_score == pytest.approx(11 / 24)
+    assert summary.dimension_averages.overall_score == pytest.approx(43 / 56)
 
     assert {
         category: row.count
@@ -221,7 +221,6 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
         "03-result-edge-east-completed-orders",
         "03-result-edge-gross-payments",
         "03-result-edge-highest-order-total",
-        "03-result-edge-missing-region-revenue",
         "03-result-edge-pending-orders",
         "03-synonym-average-basket",
         "03-synonym-finished-order-count",
@@ -280,6 +279,22 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     )
     assert normal.result.verification.applicable is True
     assert normal.result.verification.passed is True
+
+    region_revenue = next(
+        execution
+        for execution in executions
+        if execution.result.case_id == "03-result-edge-missing-region-revenue"
+    )
+    assert region_revenue.raw_result["metric"] == "north_revenue"
+    assert region_revenue.raw_result["semantic_plan"]["filters"] == {
+        "region": "north"
+    }
+    assert region_revenue.raw_result["params"] == ["north", "north"]
+    assert region_revenue.raw_result["evidence"] == {"north_revenue": 0.0}
+    assert region_revenue.result.state.passed is True
+    assert region_revenue.result.policy.passed is True
+    assert region_revenue.result.verification.passed is True
+    assert region_revenue.result.success is True
 
 
 def test_integration_reports_are_deterministic_and_identify_dynamic_source(tmp_path):

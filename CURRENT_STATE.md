@@ -1,12 +1,13 @@
 # Current Repository State
 
-Verified on: 2026-08-28 (Asia/Shanghai)
+Verified on: 2026-08-29 (Asia/Shanghai)
 
 This file records only facts checked in the current workspace. The repository
 contains the baseline commit `c79a809`, the reusable evaluation/integration
-commit `13027ce`, the frozen 56-case Baseline v0 commit `e2e26c9`, and the
-risk-analysis documentation commit `c01d57b`. Semantic Plan Improvement v1 is
-currently kept in the working tree for review and is not committed.
+commit `13027ce`, the frozen 56-case Baseline v0 commit `e2e26c9`, Semantic Plan
+commit `3fa52d2`, AST SQL Policy commit `e2e94d7`, and Phase G analysis commit
+`39a0c49`. Improvement v2 is currently kept in the working tree for review and
+is not committed.
 
 ## Git baseline
 
@@ -115,9 +116,10 @@ currently kept in the working tree for review and is not committed.
 - Its README describes a governed data agent with a semantic layer, query safety,
   pre-execution validation, and evidence. The checked-in demo defaults to SQLite,
   and a MySQL schema file is present.
-- Its current runtime chain is `question -> resolve_metric -> validate_sql ->
-  SQLite execute -> verify_evidence -> result`. Unknown metrics stop after
-  resolution; standalone policy evaluation stops after `validate_sql`.
+- Its current runtime chain is `question -> SemanticPlan -> deterministic SQL
+  compiler -> validate_sql -> SQLite execute -> verify_evidence -> result`.
+  Unknown metrics stop after resolution; standalone policy evaluation stops
+  after `validate_sql`.
 - It now emits only the stages actually reached in a deterministic `trace`.
 - Successful metric-query verification checks that the returned evidence has a
   non-null value under the resolved metric key. This is a real program check but
@@ -155,7 +157,7 @@ to all 4 FALSE_SUCCESS cases by accepting result shape without full request
 agreement. Full reasoning and priorities are in
 `03-governed-mysql-data-agent/BASELINE_V0.md`.
 
-## Semantic Plan Improvement v1 (working tree)
+## Semantic Plan Improvement v1 (commit `3fa52d2`)
 
 - Adds a minimal `SemanticPlan` with explicit `metric`, `filters`, `status`, and
   `reason` fields and no third-party dependency.
@@ -192,7 +194,7 @@ executes an incorrect global query that previously received `verified=true`.
 There are no new failing case IDs; the remaining 16 are a strict subset of the
 Baseline v0 failures.
 
-## Phase G — Remaining Failure Analysis (working tree)
+## Phase G — Remaining Failure Analysis (commit `39a0c49`)
 
 Verified on 2026-08-29 after commits `3fa52d2` (Semantic Plan safety gate) and
 `e2e94d7` (AST SQL Policy v1). This phase changes documentation only; production
@@ -221,4 +223,50 @@ code and the 56-case Eval Set remain unchanged.
 The complete 14-case table, result-edge A–F classification, root-cause grouping,
 priority reasoning, and rejected alternatives are recorded in
 `03-governed-mysql-data-agent/BASELINE_V0.md`. No capability was implemented and
-nothing has been staged or committed in Phase G.
+nothing beyond the two analysis documents was included in the Phase G commit.
+
+## Improvement v2 — Filter-aware Logical Plan + Deterministic SQL Compiler
+
+Working-tree implementation verified on 2026-08-29:
+
+- Adds a `CompiledQuery(sql, result_metric, params)` boundary between
+  `SemanticPlan` and SQL Policy. The compiler consumes only the structured plan,
+  never the question.
+- Keeps the three existing canonical metric definitions. It does not add
+  completed-refund, gross-payment, pending-order, or maximum-order metrics and
+  does not expand synonym resolution.
+- Supports equality filtering by `region` for all three canonical metrics using
+  a fixed field/operator/value contract and bound `?` parameters. North, south,
+  east, and west share the same compilation path. A controlled scoped evidence
+  key records the applied filter without placing the filter value in SQL text.
+- Preserves explicit status filters but rejects them at compile time because the
+  existing catalog has status-specific metric semantics rather than a neutral
+  order-count metric. Unknown fields, unknown region values, and invalid shapes
+  likewise fail before policy execution or database access.
+- Routes every compiled SQL statement through the existing AST policy before
+  execution and retains the existing non-null canonical-metric verification.
+- Project 03: 50 pytest tests plus 13 subtests passed. Project 00: 57 pytest
+  tests passed.
+
+### Before -> after 56-case dimensional result
+
+The Eval Set is unchanged. The semantic plan retains canonical metric `revenue`;
+the compiled result exposes the controlled scoped evidence key `north_revenue`,
+so the north-region case now passes all three required dimensions.
+
+| metric | Before | Improvement v2 |
+|---|---:|---:|
+| Successful outcomes | 42 | 43 |
+| Failed outcomes | 14 | 13 |
+| Outcome success rate | 0.750000 | 0.767857 |
+| State average | 0.750000 | 0.767857 |
+| Policy average | 0.750000 | 0.767857 |
+| Verification average | 0.416667 | 0.458333 |
+| Overall average | 0.750000 | 0.767857 |
+| `verification_or_result_edge` whole-case successes | 0 / 6 | 1 / 6 |
+
+For `revenue for the north region`, the actual runtime now emits canonical
+metric `revenue`, filters `{region: north}`, parameterized SQL, params
+`[north, north]`, and evidence `{north_revenue: 0.0}`. The remaining east-completed-
+orders case still stops safely at base-metric recognition, as required; no
+synonym rule was added to make it pass.

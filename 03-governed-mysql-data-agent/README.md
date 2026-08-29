@@ -11,12 +11,16 @@ python3 -m pip install -r requirements.txt
 
 当前真实调用链：
 
-`question -> build_semantic_plan -> validate_sql -> SQLite execute -> verify_evidence -> result`
+`question -> build_semantic_plan -> compile_plan -> validate_sql -> SQLite execute -> verify_evidence -> result`
 
 `SemanticPlan` 最小契约显式包含 `metric`、`filters`、`status` 和 `reason`。
-只有 `READY` plan 可以进入 SQL policy 与执行。多个 metric、合同定义的模糊
-scope，以及已识别但当前不可执行的 region filter 会在 SQL 之前返回
-`NEED_CLARIFICATION`，不会静默退化为无过滤查询。
+只有 `READY` plan 可以进入 deterministic SQL compiler。多个 metric 和合同定义的
+模糊 scope 会先返回 `NEED_CLARIFICATION`。Compiler 只消费结构化 plan，不读取
+原问题；当前允许 `region = ?`，字段、运算符和 east/west/north/south 值均由白名单
+控制。SQL 与参数分开传递。显式 status filter、未知字段、未知 region 或异常值形状
+会在执行前安全失败，不会静默退化为无过滤查询。
+成功的过滤查询保留 plan 中的 canonical metric，并使用受控的 scoped evidence key
+（例如 `north_revenue`）表达已执行的过滤范围；filter value 不进入 SQL 结构。
 
 SQL Policy 只允许一条解析成功且只读的 SELECT query，包括
 `WITH ... SELECT`。它根据 AST 节点拒绝写操作、多语句、锁定查询、解析失败
@@ -43,5 +47,5 @@ python3 -m src.integration_benchmark
 ## What to build next / 下一步
 - 接真实 MySQL，并使用只读账号。
 - 增加 schema retrieval + metric retrieval。
-- 用 LLM 生成 logical plan，再由 deterministic compiler 转 SQL。
+- 扩展 logical plan 的受治理 filter/operator contract。
 - 增加 100 个 NL→business metric eval cases。
