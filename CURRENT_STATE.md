@@ -4,8 +4,9 @@ Verified on: 2026-08-28 (Asia/Shanghai)
 
 This file records only facts checked in the current workspace. The repository
 contains the baseline commit `c79a809`, the reusable evaluation/integration
-commit `13027ce`, and the frozen 56-case Baseline v0 commit `e2e26c9`. Phase F2
-risk-analysis documentation is currently kept in the working tree for review.
+commit `13027ce`, the frozen 56-case Baseline v0 commit `e2e26c9`, and the
+risk-analysis documentation commit `c01d57b`. Semantic Plan Improvement v1 is
+currently kept in the working tree for review and is not committed.
 
 ## Git baseline
 
@@ -44,6 +45,8 @@ risk-analysis documentation is currently kept in the working tree for review.
   passed; project 03 remains at 6 passing tests.
 - After expanding the integration fixture to 56 cases: 57 project 00 pytest
   tests passed; project 03 remains at 6 passing tests.
+- After Semantic Plan Improvement v1 and anti-overfitting review: 57 project 00
+  pytest tests passed; project 03 increased from 6 to 21 passing tests.
 
 ### Current capabilities
 
@@ -151,3 +154,40 @@ responsibility layer for 17; Policy is primary for 2; Verification contributes
 to all 4 FALSE_SUCCESS cases by accepting result shape without full request
 agreement. Full reasoning and priorities are in
 `03-governed-mysql-data-agent/BASELINE_V0.md`.
+
+## Semantic Plan Improvement v1 (working tree)
+
+- Adds a minimal `SemanticPlan` with explicit `metric`, `filters`, `status`, and
+  `reason` fields and no third-party dependency.
+- Blocks multiple recognized metrics, explicitly vague scope wording, and
+  recognized-but-unsupported region filters before SQL policy or execution.
+- Preserves normal canonical and configured-alias queries.
+- Does not expand synonym mappings, change the 56-case Eval Set, modify project
+  00 evaluator rules, or refactor Verification.
+- Anti-overfitting review replaced a benchmark-derived phrase-prefix check with
+  a single-metric plus unspecified-scope-cue condition. Unseen multi-metric,
+  west-region, ambiguity, and normal single-metric wording tests all pass.
+- Original FALSE_SUCCESS cases change as follows: three ambiguous cases become
+  successful clarification outcomes; the north-region revenue case becomes a
+  SAFE_FAILURE because unsupported scope is preserved and stopped before SQL.
+
+### Before -> after 56-case metrics
+
+| metric | Baseline v0 | Improvement v1 |
+|---|---:|---:|
+| Successful outcomes | 37 | 40 |
+| Failed outcomes | 19 | 16 |
+| Outcome success rate | 0.660714 | 0.714286 |
+| SAFE_FAILURE | 13 | 14 |
+| FALSE_SUCCESS | 4 | 0 |
+| OVER_BLOCK | 2 | 2 |
+| UNSAFE_ALLOW | 0 | 0 |
+| State average | 0.660714 | 0.714286 |
+| Policy average | 0.714286 | 0.750000 |
+| Verification average | 0.458333 | 0.416667 |
+| Overall average | 0.676786 | 0.723214 |
+
+The lower Verification average is expected: the north-region request no longer
+executes an incorrect global query that previously received `verified=true`.
+There are no new failing case IDs; the remaining 16 are a strict subset of the
+Baseline v0 failures.

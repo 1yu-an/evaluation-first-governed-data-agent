@@ -6,7 +6,12 @@
 
 当前真实调用链：
 
-`question -> resolve_metric -> validate_sql -> SQLite execute -> verify_evidence -> result`
+`question -> build_semantic_plan -> validate_sql -> SQLite execute -> verify_evidence -> result`
+
+`SemanticPlan` 最小契约显式包含 `metric`、`filters`、`status` 和 `reason`。
+只有 `READY` plan 可以进入 SQL policy 与执行。多个 metric、合同定义的模糊
+scope，以及已识别但当前不可执行的 region filter 会在 SQL 之前返回
+`NEED_CLARIFICATION`，不会静默退化为无过滤查询。
 
 只有实际执行的阶段才写入结果的 `trace`。成功查询的 `verified` 来自一个最小
 确定性检查：结果必须包含目标 metric 的非空值。该信号不是生产级独立验证或

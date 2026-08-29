@@ -1,7 +1,7 @@
 import sqlite3
 from contextlib import closing
 
-from .semantic import METRICS, resolve_metric
+from .semantic import METRICS, PLAN_READY, build_semantic_plan
 from .policy import validate_sql
 
 
@@ -19,14 +19,16 @@ class DataAgent:
 
     def answer(self, question: str) -> dict:
         trace = ["resolve_metric"]
-        metric = resolve_metric(question)
-        if not metric:
+        plan = build_semantic_plan(question)
+        if plan.status != PLAN_READY:
             return {
                 "status": "NEED_CLARIFICATION",
-                "reason": "unknown business metric / 未知业务指标",
+                "reason": plan.reason,
+                "semantic_plan": plan.to_dict(),
                 "trace": trace,
             }
 
+        metric = plan.metric
         sql = METRICS[metric]["sql"]
         trace.append("validate_sql")
         ok, reason = validate_sql(sql)
@@ -50,6 +52,7 @@ class DataAgent:
         return {
             "status": "OK",
             "metric": metric,
+            "semantic_plan": plan.to_dict(),
             "definition": METRICS[metric]["description"],
             "sql": sql,
             "evidence": evidence,
