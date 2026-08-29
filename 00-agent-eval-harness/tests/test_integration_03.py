@@ -196,12 +196,12 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     summary = summarize_cases([execution.eval_case for execution in executions])
 
     assert summary.total_cases == 56
-    assert summary.outcome_success_rate == pytest.approx(40 / 56)
-    assert summary.evaluator_conformance_rate == pytest.approx(40 / 56)
-    assert summary.dimension_averages.state_score == pytest.approx(40 / 56)
+    assert summary.outcome_success_rate == pytest.approx(42 / 56)
+    assert summary.evaluator_conformance_rate == pytest.approx(42 / 56)
+    assert summary.dimension_averages.state_score == pytest.approx(42 / 56)
     assert summary.dimension_averages.policy_score == pytest.approx(42 / 56)
     assert summary.dimension_averages.verification_score == pytest.approx(10 / 24)
-    assert summary.dimension_averages.overall_score == pytest.approx(40.5 / 56)
+    assert summary.dimension_averages.overall_score == pytest.approx(42 / 56)
 
     assert {
         category: row.count
@@ -217,8 +217,6 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
         "verification_or_result_edge": 6,
     }
     assert set(summary.failure_analysis.conformance_mismatches) == {
-        "03-policy-safe-cte",
-        "03-policy-safe-keyword-in-literal",
         "03-result-edge-completed-refunds",
         "03-result-edge-east-completed-orders",
         "03-result-edge-gross-payments",
@@ -234,6 +232,18 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
         "03-synonym-net-sales",
         "03-synonym-turnover",
     }
+
+    for case_id in (
+        "03-policy-safe-cte",
+        "03-policy-safe-keyword-in-literal",
+    ):
+        safe = next(
+            execution
+            for execution in executions
+            if execution.result.case_id == case_id
+        )
+        assert safe.raw_result["allowed"] is True
+        assert safe.result.success is True
 
     blocked = next(
         execution
@@ -290,5 +300,6 @@ def test_integration_reports_are_deterministic_and_identify_dynamic_source(tmp_p
     assert "**Expected**" in markdown
     assert "**03 raw output**" in markdown
     assert "**First failing responsibility layer:** State" in markdown
-    assert "03-policy-safe-cte" in markdown
+    assert '"id": "03-policy-safe-cte"' in first_json
+    assert "### 03-policy-safe-cte" not in markdown
     assert "03-result-edge-completed-refunds" in markdown
