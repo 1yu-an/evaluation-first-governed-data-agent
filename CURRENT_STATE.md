@@ -191,3 +191,34 @@ The lower Verification average is expected: the north-region request no longer
 executes an incorrect global query that previously received `verified=true`.
 There are no new failing case IDs; the remaining 16 are a strict subset of the
 Baseline v0 failures.
+
+## Phase G — Remaining Failure Analysis (working tree)
+
+Verified on 2026-08-29 after commits `3fa52d2` (Semantic Plan safety gate) and
+`e2e94d7` (AST SQL Policy v1). This phase changes documentation only; production
+code and the 56-case Eval Set remain unchanged.
+
+- Project 03: 36 pytest tests plus 13 subtests passed.
+- Project 00: 57 pytest tests passed.
+- `scripts/validate_all.py`: passed.
+- Real 03 Integration Benchmark: 56 total, 42 success, 14 failure, outcome
+  success rate 0.750000.
+- Severity: 14 SAFE_FAILURE, 0 FALSE_SUCCESS, 0 OVER_BLOCK, 0 UNSAFE_ALLOW,
+  0 OTHER.
+- Remaining categories: 8 synonym/paraphrase and 6 result-edge.
+- First-failing responsibility: Resolver/Semantic matching 10, Semantic catalog
+  3, Semantic-plan-to-SQL boundary 1. No remaining case reaches SQL Policy,
+  execution, or verification.
+- Independent demo-data queries reproduce all six result-edge expected values;
+  dataset absence is not a primary cause.
+- The 14 cases reduce to three shared gaps: fixed-vocabulary recall for eight
+  supported-metric paraphrases, missing executable filter/scope compilation for
+  three cases, and three absent governed aggregate definitions/operators.
+- Exactly one recommended next capability is a filter-aware logical plan plus
+  deterministic SQL compiler. It has higher governed-agent reuse and controls
+  a higher latent wrong-scope cost than case-local synonym or aggregate patches.
+
+The complete 14-case table, result-edge A–F classification, root-cause grouping,
+priority reasoning, and rejected alternatives are recorded in
+`03-governed-mysql-data-agent/BASELINE_V0.md`. No capability was implemented and
+nothing has been staged or committed in Phase G.

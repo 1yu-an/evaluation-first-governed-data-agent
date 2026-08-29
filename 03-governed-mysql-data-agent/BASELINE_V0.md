@@ -425,3 +425,161 @@ Introduce one explicit semantic-plan contract before SQL selection: it must name
 exactly one supported metric, preserve requested scope/filter fields, and return
 clarification when alternatives or required scope remain unresolved. This is a
 recommendation only; no implementation was made in Phase F2.
+
+## Phase G — Remaining Failure Analysis
+
+Verified on 2026-08-29 (Asia/Shanghai). This section supersedes the earlier
+failure counts for the current runtime after Semantic Plan safety gating and SQL
+Policy v1. It is analysis only: no production code, Eval Set, evaluator, README,
+or runtime behavior was changed.
+
+### Current benchmark
+
+- Total: 56
+- Successful outcomes: 42
+- Failed outcomes: 14
+- Outcome success rate: 0.750000
+- Evaluator conformance rate: 0.750000
+- State average: 0.750000
+- Policy average: 0.750000
+- Verification average: 0.416667
+- Overall average: 0.750000
+- Remaining categories: `synonym_or_paraphrase` 8,
+  `verification_or_result_edge` 6
+- `FALSE_SUCCESS=0`, `OVER_BLOCK=0`, `UNSAFE_ALLOW=0`
+
+The 03 suite passed 36 tests plus 13 subtests, the 00 suite passed 57 tests, and
+`scripts/validate_all.py` passed. The benchmark dynamically executed the real 03
+runtime. The 56-case file remained unchanged.
+
+### All 14 remaining failures
+
+Every actual result below is `NEED_CLARIFICATION`, contains no business value or
+`verified=true`, and has trace `resolve_metric` only. Therefore all 14 are
+SAFE_FAILURE. “First layer” names the engineering responsibility; State is also
+the first failing evaluator dimension in every case. Root causes are inferences
+from the raw result and current source, while observations are confirmed facts.
+
+| case_id | category | user input | expected | actual | first failing responsibility layer | severity | confirmed fact | likely root cause |
+|---|---|---|---|---|---|---|---|---|
+| `03-synonym-money-made` | synonym_or_paraphrase | `How much money did we make?` | `OK`; `revenue`; `{revenue: 180.0}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | Stopped after resolution and emitted no value | Fixed vocabulary has no everyday “money made” mapping |
+| `03-synonym-net-sales` | synonym_or_paraphrase | `Show net sales after refunds` | `OK`; `revenue`; `{revenue: 180.0}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | “net sales” did not match a configured alias or canonical token | Domain synonym is outside the fixed vocabulary |
+| `03-synonym-turnover` | synonym_or_paraphrase | `What is our turnover?` | `OK`; `revenue`; `{revenue: 180.0}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | “turnover” produced no metric candidate | Domain synonym is outside the fixed vocabulary |
+| `03-synonym-finished-order-count` | synonym_or_paraphrase | `finished order count` | `OK`; `completed_orders`; `{completed_orders: 2}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | Natural wording did not match canonical `completed_orders` | Resolver requires canonical substring or configured Chinese alias |
+| `03-synonym-how-many-completed` | synonym_or_paraphrase | `How many orders were completed?` | `OK`; `completed_orders`; `{completed_orders: 2}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | Natural question form produced no candidate | Resolver lacks compositional phrase normalization |
+| `03-synonym-fulfilled-purchases` | synonym_or_paraphrase | `Count fulfilled purchases` | `OK`; `completed_orders`; `{completed_orders: 2}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | No SQL or verification stage ran | “fulfilled purchases” is not mapped to completed orders |
+| `03-synonym-average-basket` | synonym_or_paraphrase | `What is the average basket value?` | `OK`; `avg_order_value`; `{avg_order_value: 100.0}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | “average basket” produced no candidate | AOV domain paraphrase is outside the fixed vocabulary |
+| `03-synonym-mean-order-amount` | synonym_or_paraphrase | `mean completed order amount` | `OK`; `avg_order_value`; `{avg_order_value: 100.0}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic matching | SAFE_FAILURE | Natural aggregate wording produced no candidate | Resolver does not normalize mean/order-amount phrasing |
+| `03-result-edge-completed-refunds` | verification_or_result_edge | `total completed refunds` | `OK`; `completed_refunds`; `{completed_refunds: 20.0}` | unknown metric; metric `null`; filters `{}` | Semantic catalog | SAFE_FAILURE | Demo query independently returns 20.0, but `METRICS` has no refund aggregate | Fixed three-metric catalog cannot represent this aggregate |
+| `03-result-edge-gross-payments` | verification_or_result_edge | `gross completed payment amount` | `OK`; `completed_payments`; `{completed_payments: 200.0}` | unknown metric; metric `null`; filters `{}` | Semantic catalog | SAFE_FAILURE | Demo query independently returns 200.0, but only net revenue is catalogued | Catalog does not distinguish gross payments from net revenue |
+| `03-result-edge-pending-orders` | verification_or_result_edge | `pending order count` | `OK`; `pending_orders`; `{pending_orders: 1}` | unknown metric; metric `null`; filters `{}` | Resolver / Semantic plan | SAFE_FAILURE | Demo has one pending row; no status filter was extracted | No status-filter plan or parameterized order-count compiler exists |
+| `03-result-edge-east-completed-orders` | verification_or_result_edge | `completed orders in the east region` | `OK`; `east_completed_orders`; `{east_completed_orders: 1}` | unknown metric; metric `null`; filters `{region: east}` | Resolver / Semantic matching | SAFE_FAILURE | Region was preserved and demo has one matching row, but base metric stayed null | Natural base metric is unresolved; represented region is also not executable |
+| `03-result-edge-missing-region-revenue` | verification_or_result_edge | `revenue for the north region` | `OK`; `north_revenue`; `{north_revenue: 0.0}` | metric `revenue`; filters `{region: north}`; explicitly unsupported | Semantic-plan-to-SQL boundary | SAFE_FAILURE | Full requested filter is preserved; demo query independently returns zero | Fixed SQL lookup cannot compile a represented region filter |
+| `03-result-edge-highest-order-total` | verification_or_result_edge | `highest completed order total` | `OK`; `max_completed_order_total`; `{max_completed_order_total: 120.0}` | unknown metric; metric `null`; filters `{}` | Semantic catalog | SAFE_FAILURE | Demo query independently returns 120.0, but no maximum operation exists in `METRICS` | Fixed catalog cannot represent a new aggregate operation |
+
+### Severity distribution
+
+| failure type | count | evidence |
+|---|---:|---|
+| SAFE_FAILURE | 14 | All failures returned clarification before SQL and emitted no business value |
+| FALSE_SUCCESS | 0 | No failed case returned `status=OK` or `verified=true` |
+| OVER_BLOCK | 0 | Both safe policy cases now pass |
+| UNSAFE_ALLOW | 0 | All 10 attack/destructive cases pass their rejection contract |
+| OTHER | 0 | Every remaining failure meets the SAFE_FAILURE definition |
+
+This distribution describes the fixed 56 cases, not a proof of universal safety.
+
+### First-failing responsibility-layer distribution
+
+| responsibility layer | primary count | cases | observed role |
+|---|---:|---|---|
+| Resolver / Semantic matching | 10 | eight synonym cases; pending orders; east completed orders | No executable base metric was selected |
+| Semantic catalog | 3 | completed refunds; gross payments; highest order total | Requested aggregate is absent from the fixed metric catalog |
+| Semantic-plan-to-SQL boundary | 1 | north-region revenue | Metric and filter are represented, but filters are explicitly non-executable |
+| SQL Policy | 0 | — | No remaining failure reached policy |
+| Execution | 0 | — | No remaining failure attempted SQL execution |
+| Verification | 0 | — | No remaining failure reached verification |
+| Evaluation contract | 0 | — | No current failure is caused first by evaluator behavior |
+
+The east and pending cases also expose downstream filter-compilation gaps, but
+their observable first stop is semantic resolution. Verification remains a
+latent defense-in-depth weakness because it checks only a non-null metric key;
+it did not contribute to these failures because it never ran.
+
+### Six result-edge cases
+
+The demo data independently produced every expected value: completed refunds
+20.0, completed payments 200.0, pending orders 1, east completed orders 1,
+north revenue 0, and maximum completed order total 120.0. Therefore none is
+primarily category C (missing dataset capability).
+
+| case_id | primary A–F classification | first layer | secondary weakness | conclusion |
+|---|---|---|---|---|
+| `03-result-edge-completed-refunds` | F — unsupported aggregate/catalog metric | Semantic catalog | Verification not reached | Data and contract value are supported; the catalog cannot name or compile the aggregate |
+| `03-result-edge-gross-payments` | F — unsupported aggregate/catalog metric | Semantic catalog | Verification not reached | Gross and net measures need distinct governed definitions |
+| `03-result-edge-pending-orders` | A — no current status-filter execution capability | Resolver / Semantic plan | Expected contract flattens metric plus status into `pending_orders` | Status scope is neither extracted nor compiled, although the row exists |
+| `03-result-edge-east-completed-orders` | B — region filter represented but not executable | Resolver / Semantic matching | Base phrase is unresolved; contract flattens metric plus region | Filter preservation works, but both base-metric normalization and compilation are needed |
+| `03-result-edge-missing-region-revenue` | B — region filter represented but not executable | Semantic-plan-to-SQL boundary | Contract flattens metric plus region; verification would need plan agreement | This is the cleanest direct evidence for a missing deterministic filter compiler |
+| `03-result-edge-highest-order-total` | F — unsupported aggregate operation/catalog metric | Semantic catalog | Verification not reached | Maximum is outside the three fixed SQL definitions |
+
+No result-edge case is primarily D or E. For the three filtered cases, encoding
+scope inside metric/evidence names (`pending_orders`, `east_completed_orders`,
+`north_revenue`) creates a secondary contract-design tension with a normalized
+`metric + filters` plan. That does not explain the current safe stop, and the Eval
+Set was not changed. Verification weakness is also secondary and latent, not an
+observed first cause.
+
+### Eight synonym cases
+
+All eight remain SAFE_FAILURE and share one resolver limitation: candidate
+selection recognizes only canonical metric-name substrings and four configured
+Chinese aliases. The current examples span everyday phrasing, domain synonyms,
+and compositional aggregate wording; they are not simple spelling mistakes.
+
+Adding eight exact aliases would make these fixed cases pass but would be a
+case-local patch. Generic edit-distance fuzzy matching is insufficient for terms
+such as “turnover”, “fulfilled purchases”, and “average basket”. The appropriate
+durable capability level is a governed synonym/retrieval resolver over approved
+metric definitions and examples, with confidence-based clarification. Curated
+aliases can be inputs to that retrieval layer; an LLM parser is not required for
+the current three-metric scope.
+
+### Minimal shared root causes
+
+| root cause | affected cases | responsibility layer | failure cost | blast radius | implementation complexity | likely benchmark gain |
+|---|---|---|---|---|---|---|
+| A. Fixed-vocabulary recall for supported metrics | all 8 `03-synonym-*` cases | Resolver / Semantic matching | Low per observed case: safe refusal | Medium: any new wording for known metrics | Medium | Up to 8/56 if retrieval generalizes without regressions |
+| B. No executable filter/scope compilation | pending orders, east completed orders, north-region revenue | Semantic plan and deterministic compiler | Medium now; potentially High if scope were ever dropped instead of blocked | High: reusable across metrics and future status/region scopes | High | Ceiling 3/56; north is the isolated direct compiler case, while east/pending also need normalization/extraction |
+| C. Fixed catalog lacks governed aggregate definitions/operators | completed refunds, gross payments, highest order total | Semantic catalog and compiler | Medium: safe refusal of answerable data questions | Medium: each new governed measure/operation currently needs fixed SQL | Medium | Up to 3/56 for these approved aggregates |
+
+These three causes partition the 14 cases by their primary capability gap rather
+than treating each case as an independent bug.
+
+### Priority model and exactly one next improvement
+
+**Recommended next improvement: filter-aware logical plan plus deterministic SQL
+compilation.**
+
+Its raw benchmark ceiling is smaller than synonym retrieval, but it has the
+highest governed-agent ROI under the requested model. The current failures prove
+that a region filter can be preserved yet cannot be executed, and that status
+scope is not represented. Correct compilation makes accepted scope explicit,
+auditable, policy-checkable, and reusable across metrics. Its current failure
+cost is bounded by the safety gate, but its latent cost is high: silently losing
+scope would return a plausible wrong business value, as the earlier baseline
+north-region FALSE_SUCCESS demonstrated. The capability has broad reuse beyond
+the three fixed cases even though implementation complexity is High.
+
+Why not the alternatives now:
+
+- A synonym/retrieval resolver could recover up to eight current SAFE_FAILURES,
+  but it improves wording recall without making any new filtered query
+  executable. Exact aliases would optimize the fixed corpus rather than the
+  governed execution model.
+- Adding the three missing aggregate definitions could recover three cases, but
+  isolated fixed SQL entries have less reuse than a typed plan/compiler contract.
+- Stronger verification is valuable defense in depth, but all 14 failures stop
+  before verification. On this corpus it has zero immediate outcome gain and
+  cannot create missing semantic or execution capability.
+
+No implementation was made in Phase G.
