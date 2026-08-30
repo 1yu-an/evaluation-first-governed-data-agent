@@ -156,6 +156,18 @@ def _metric_candidates(question: str) -> list[str]:
 
 def _guard_reason(question: str) -> str | None:
     _, features = _normalize_question(question)
+    has_explicit_status_filter = any(
+        pattern.search(question) for pattern in STATUS_PATTERNS
+    )
+    if (
+        {"pending", "order"}.issubset(features)
+        and {"completed", "finished"}.intersection(features)
+        and not has_explicit_status_filter
+    ):
+        return (
+            "conflicting order states require clarification / "
+            "冲突的订单状态需要澄清"
+        )
     for rule in GUARD_RULES:
         if not rule.all_features.issubset(features):
             continue

@@ -36,6 +36,7 @@ def test_revenue_without_filters_preserves_the_canonical_query():
     ("metric", "aggregation"),
     [
         ("completed_orders", "COUNT(*) AS completed_orders"),
+        ("pending_orders", "COUNT(*) AS pending_orders"),
         ("avg_order_value", "AVG(total)"),
     ],
 )
@@ -80,6 +81,26 @@ def test_compiled_filtered_sql_still_passes_ast_policy():
     )
 
     assert validate_sql(compiled.sql) == (True, "ok")
+
+
+def test_pending_orders_uses_fixed_strategy_sql_and_catalog_contract():
+    compiled = compile_plan(_ready_plan("pending_orders"))
+
+    assert compiled.sql == (
+        "SELECT COUNT(*) AS pending_orders FROM orders WHERE status='pending'"
+    )
+    assert compiled.result_metric == "pending_orders"
+    assert compiled.params == ()
+    assert (
+        compiled.result_contract
+        is METRIC_CATALOG["pending_orders"].result_contract
+    )
+    assert validate_sql(compiled.sql) == (True, "ok")
+
+
+def test_pending_orders_does_not_accept_region_as_a_generic_filter():
+    with pytest.raises(CompileError, match="unsupported filter field"):
+        compile_plan(_ready_plan("pending_orders", {"region": "north"}))
 
 
 def test_all_existing_metrics_use_the_same_region_filter_contract():

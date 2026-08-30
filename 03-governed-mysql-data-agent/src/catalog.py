@@ -14,6 +14,7 @@ class CompilerStrategy(str, Enum):
 
     REVENUE = "REVENUE"
     COMPLETED_ORDER_COUNT = "COMPLETED_ORDER_COUNT"
+    PENDING_ORDER_COUNT = "PENDING_ORDER_COUNT"
     AVG_COMPLETED_ORDER_VALUE = "AVG_COMPLETED_ORDER_VALUE"
     COMPLETED_PAYMENT_SUM = "COMPLETED_PAYMENT_SUM"
     COMPLETED_REFUND_SUM = "COMPLETED_REFUND_SUM"
@@ -90,6 +91,25 @@ METRIC_DEFINITIONS = (
         result_contract=ResultContract.scalar_numeric("completed_orders"),
         compiler_strategy=CompilerStrategy.COMPLETED_ORDER_COUNT,
         allowed_filters=frozenset({"region"}),
+    ),
+    MetricDefinition(
+        metric_id="pending_orders",
+        business_meaning="Count of pending orders / 待处理订单数量",
+        resolver=ResolverMetadata(
+            canonical_forms=("pending_orders", "pending orders"),
+            aliases=("pending order count", "number of pending orders"),
+            composition_patterns=(
+                CompositionPattern(
+                    required_feature_groups=(
+                        frozenset({"pending"}),
+                        frozenset({"order"}),
+                        frozenset({COUNT_INTENT}),
+                    )
+                ),
+            ),
+        ),
+        result_contract=ResultContract.scalar_numeric("pending_orders"),
+        compiler_strategy=CompilerStrategy.PENDING_ORDER_COUNT,
     ),
     MetricDefinition(
         metric_id="avg_order_value",

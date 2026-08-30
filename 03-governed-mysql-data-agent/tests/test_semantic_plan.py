@@ -125,6 +125,9 @@ def test_deliberately_rejected_synonyms_do_not_execute_sql(question, tmp_path):
         ("Show net sales after refunds", "revenue"),
         ("net revenue", "revenue"),
         ("completed order count", "completed_orders"),
+        ("pending order count", "pending_orders"),
+        ("number of pending orders", "pending_orders"),
+        ("how many orders are pending", "pending_orders"),
         ("aov", "avg_order_value"),
     ],
 )
@@ -199,6 +202,8 @@ def test_per_unit_expression_does_not_collapse_to_revenue():
         ("营收", "revenue"),
         ("订单数", "completed_orders"),
         ("客单价", "avg_order_value"),
+        ("pending_orders", "pending_orders"),
+        ("pending orders", "pending_orders"),
     ],
 )
 def test_canonical_forms_and_existing_aliases_do_not_regress(question, metric):
@@ -252,6 +257,17 @@ def test_canonical_forms_and_existing_aliases_do_not_regress(question, metric):
             "gross completed payments",
             "completed_payments",
             {"completed_payments": 200.0},
+        ),
+        ("pending order count", "pending_orders", {"pending_orders": 1}),
+        (
+            "number of pending orders",
+            "pending_orders",
+            {"pending_orders": 1},
+        ),
+        (
+            "how many orders are pending",
+            "pending_orders",
+            {"pending_orders": 1},
         ),
     ],
 )
@@ -315,6 +331,51 @@ def test_new_metrics_complete_the_full_governed_chain(
         "execute_sql",
         "verify_evidence",
     ]
+
+
+def test_pending_orders_completes_the_full_governed_chain(tmp_path):
+    db_path = initialize_demo(tmp_path / "pending-orders.db")
+
+    result = DataAgent(db_path).answer("pending order count")
+
+    assert result["status"] == "OK"
+    assert result["semantic_plan"]["metric"] == "pending_orders"
+    assert result["metric"] == "pending_orders"
+    assert result["evidence"] == {"pending_orders": 1}
+    assert (
+        result["definition"]
+        == METRIC_CATALOG["pending_orders"].business_meaning
+    )
+    assert result["verified"] is True
+    assert result["trace"] == [
+        "resolve_metric",
+        "compile_query",
+        "validate_sql",
+        "execute_sql",
+        "verify_evidence",
+    ]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "pending order amount",
+        "pending payment count",
+        "pending refund count",
+        "completed pending orders",
+    ],
+)
+def test_pending_order_negative_expressions_fail_before_sql(question, tmp_path):
+    db_path = tmp_path / "must-not-be-opened.db"
+
+    result = DataAgent(db_path).answer(question)
+
+    assert result["status"] == "NEED_CLARIFICATION"
+    assert result["semantic_plan"]["metric"] is None
+    assert result["trace"] == ["resolve_metric"]
+    assert "sql" not in result
+    assert "verified" not in result
+    assert not db_path.exists()
 
 
 @pytest.mark.parametrize(

@@ -122,6 +122,20 @@ def _compile_completed_order_count(
     )
 
 
+def _compile_pending_order_count(
+    definition: MetricDefinition, region: str | None
+) -> CompiledQuery:
+    if region is not None:
+        raise CompileError("pending orders do not support region filters")
+    return _compiled_query(
+        definition,
+        sql=(
+            "SELECT COUNT(*) AS pending_orders FROM orders "
+            "WHERE status='pending'"
+        ),
+    )
+
+
 def _compile_avg_completed_order_value(
     definition: MetricDefinition, region: str | None
 ) -> CompiledQuery:
@@ -176,6 +190,7 @@ CompilerFunction = Callable[[MetricDefinition, str | None], CompiledQuery]
 _STRATEGY_COMPILERS: dict[CompilerStrategy, CompilerFunction] = {
     CompilerStrategy.REVENUE: _compile_revenue,
     CompilerStrategy.COMPLETED_ORDER_COUNT: _compile_completed_order_count,
+    CompilerStrategy.PENDING_ORDER_COUNT: _compile_pending_order_count,
     CompilerStrategy.AVG_COMPLETED_ORDER_VALUE: (
         _compile_avg_completed_order_value
     ),

@@ -126,6 +126,7 @@ def test_sqlite_and_mysql_return_identical_business_evidence(
     for question in (
         "revenue",
         "completed_orders",
+        "pending order count",
         "avg_order_value",
         "gross completed payment amount",
         "total completed refunds",
