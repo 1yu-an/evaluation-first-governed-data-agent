@@ -196,12 +196,12 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     summary = summarize_cases([execution.eval_case for execution in executions])
 
     assert summary.total_cases == 56
-    assert summary.outcome_success_rate == pytest.approx(43 / 56)
-    assert summary.evaluator_conformance_rate == pytest.approx(43 / 56)
-    assert summary.dimension_averages.state_score == pytest.approx(43 / 56)
-    assert summary.dimension_averages.policy_score == pytest.approx(43 / 56)
-    assert summary.dimension_averages.verification_score == pytest.approx(11 / 24)
-    assert summary.dimension_averages.overall_score == pytest.approx(43 / 56)
+    assert summary.outcome_success_rate == pytest.approx(49 / 56)
+    assert summary.evaluator_conformance_rate == pytest.approx(49 / 56)
+    assert summary.dimension_averages.state_score == pytest.approx(49 / 56)
+    assert summary.dimension_averages.policy_score == pytest.approx(49 / 56)
+    assert summary.dimension_averages.verification_score == pytest.approx(17 / 24)
+    assert summary.dimension_averages.overall_score == pytest.approx(49 / 56)
 
     assert {
         category: row.count
@@ -218,17 +218,11 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     }
     assert set(summary.failure_analysis.conformance_mismatches) == {
         "03-result-edge-completed-refunds",
-        "03-result-edge-east-completed-orders",
         "03-result-edge-gross-payments",
         "03-result-edge-highest-order-total",
         "03-result-edge-pending-orders",
-        "03-synonym-average-basket",
-        "03-synonym-finished-order-count",
         "03-synonym-fulfilled-purchases",
-        "03-synonym-how-many-completed",
-        "03-synonym-mean-order-amount",
         "03-synonym-money-made",
-        "03-synonym-net-sales",
         "03-synonym-turnover",
     }
 

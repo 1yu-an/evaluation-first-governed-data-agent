@@ -3,6 +3,9 @@ import pytest
 from src.agent import DataAgent
 from src.demo import initialize_demo
 from src.semantic import (
+    COMPOSITION_RULES,
+    METRIC_LEXICON,
+    METRICS,
     PLAN_NEEDS_CLARIFICATION,
     PLAN_READY,
     build_semantic_plan,
@@ -99,10 +102,11 @@ def test_original_false_success_regressions_stop_before_sql(question, tmp_path):
     "question",
     [
         "How much money did we make?",
-        "What is the average basket value?",
+        "What is our turnover?",
+        "Count fulfilled purchases",
     ],
 )
-def test_existing_synonym_safe_failures_do_not_execute_sql(question, tmp_path):
+def test_deliberately_rejected_synonyms_do_not_execute_sql(question, tmp_path):
     db_path = tmp_path / "must-not-be-opened.db"
 
     result = DataAgent(db_path).answer(question)
@@ -111,6 +115,144 @@ def test_existing_synonym_safe_failures_do_not_execute_sql(question, tmp_path):
     assert result["trace"] == ["resolve_metric"]
     assert "verified" not in result
     assert not db_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("question", "metric"),
+    [
+        ("finished order count", "completed_orders"),
+        ("How many orders were completed?", "completed_orders"),
+        ("What is the average basket value?", "avg_order_value"),
+        ("mean completed order amount", "avg_order_value"),
+        ("Show net sales after refunds", "revenue"),
+        ("net revenue", "revenue"),
+        ("completed order count", "completed_orders"),
+        ("aov", "avg_order_value"),
+    ],
+)
+def test_governed_low_ambiguity_paraphrases_resolve(question, metric):
+    plan = build_semantic_plan(question)
+
+    assert plan.status == PLAN_READY
+    assert plan.metric == metric
+
+
+def test_net_sales_after_refunds_uses_existing_revenue_definition(tmp_path):
+    db_path = initialize_demo(tmp_path / "net-sales.db")
+
+    result = DataAgent(db_path).answer("Show net sales after refunds")
+
+    assert result["status"] == "OK"
+    assert result["metric"] == "revenue"
+    assert result["definition"] == METRICS["revenue"]["description"]
+    assert result["evidence"] == {"revenue": 180.0}
+    assert "payments" in result["sql"]
+    assert "refunds" in result["sql"]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "revenue growth rate",
+        "employee turnover",
+        "inventory turnover",
+        "stock turnover",
+        "turnover rate",
+        "average basket size",
+        "customer lifetime value",
+        "net sales before refunds",
+        "not revenue",
+    ],
+)
+def test_unknown_or_unsupported_expressions_fail_closed(question):
+    plan = build_semantic_plan(question)
+
+    assert plan.status == PLAN_NEEDS_CLARIFICATION
+    assert plan.metric is None
+
+
+def test_paraphrase_candidates_for_two_metrics_require_clarification():
+    plan = build_semantic_plan(
+        "Compare average basket value with finished order count"
+    )
+
+    assert plan.status == PLAN_NEEDS_CLARIFICATION
+    assert plan.metric is None
+    assert "multiple business metrics" in plan.reason
+
+
+def test_per_unit_expression_does_not_collapse_to_revenue():
+    plan = build_semantic_plan("money made per order")
+
+    assert plan.status == PLAN_NEEDS_CLARIFICATION
+    assert plan.metric is None
+    assert "per-unit" in plan.reason
+
+
+@pytest.mark.parametrize(
+    ("question", "metric"),
+    [
+        ("revenue", "revenue"),
+        ("completed_orders", "completed_orders"),
+        ("avg_order_value", "avg_order_value"),
+        ("completed orders", "completed_orders"),
+        ("average order value", "avg_order_value"),
+        ("收入", "revenue"),
+        ("营收", "revenue"),
+        ("订单数", "completed_orders"),
+        ("客单价", "avg_order_value"),
+    ],
+)
+def test_canonical_forms_and_existing_aliases_do_not_regress(question, metric):
+    plan = build_semantic_plan(question)
+
+    assert plan.status == PLAN_READY
+    assert plan.metric == metric
+
+
+@pytest.mark.parametrize(
+    ("question", "metric", "evidence"),
+    [
+        (
+            "total number of finished orders",
+            "completed_orders",
+            {"completed_orders": 2},
+        ),
+        (
+            "number of orders that are finished",
+            "completed_orders",
+            {"completed_orders": 2},
+        ),
+        ("mean basket amount", "avg_order_value", {"avg_order_value": 100.0}),
+        (
+            "average completed order amount",
+            "avg_order_value",
+            {"avg_order_value": 100.0},
+        ),
+        ("sales net of completed refunds", "revenue", {"revenue": 180.0}),
+        (
+            "net sales following completed refunds",
+            "revenue",
+            {"revenue": 180.0},
+        ),
+    ],
+)
+def test_eval_set_outside_paraphrases_use_reusable_families(
+    question, metric, evidence, tmp_path
+):
+    db_path = initialize_demo(tmp_path / "outside-eval.db")
+
+    result = DataAgent(db_path).answer(question)
+
+    assert result["status"] == "OK"
+    assert result["metric"] == metric
+    assert result["evidence"] == evidence
+    assert result["verified"] is True
+
+
+def test_governed_lexicon_and_composition_rules_cover_only_catalog_metrics():
+    assert {entry.metric for entry in METRIC_LEXICON} == set(METRICS)
+    assert {rule.metric for rule in COMPOSITION_RULES} <= set(METRICS)
 
 
 def test_unseen_multiple_metric_wording_generalizes_to_clarification():
