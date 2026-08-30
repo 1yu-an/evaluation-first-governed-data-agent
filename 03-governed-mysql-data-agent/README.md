@@ -186,6 +186,18 @@ python -m src.integration_benchmark
 它们共同构成 3 个 SAFE_FAILURE；最终仍为 `FALSE_SUCCESS=0`、
 `UNSAFE_ALLOW=0`、`OVER_BLOCK=0`。
 
+## Automated CI Regression Gate / 自动化持续集成回归门
+
+GitHub Actions 的单一 Python 3.12 job 从干净 checkout 安装根目录
+`requirements-dev.txt`，然后运行 repository validation、完整 03 tests、完整
+00 tests，以及带 `config/03_regression_gate.json` 的固定 56-case Benchmark。
+Benchmark gate 直接使用现有机器可读断言；任何阈值退化都会返回非零退出码。00 的
+集成测试同时锁定 56-case Eval Set SHA-256，并断言最终 `53/56`、
+`SAFE_FAILURE=3`、`FALSE_SUCCESS=0`、`UNSAFE_ALLOW=0` 和 `OVER_BLOCK=0`。
+
+默认 CI 使用确定性 SQLite，不运行真实 MySQL。真实 MySQL 仍按下节说明 opt-in
+执行，因为它需要外部 MySQL 8.0 与管理员级 setup 权限。
+
 ## Engineering Evolution / 工程演进
 
 每个数字均来自对应 commit 上固定 56-case 系统集成测试的断言；Eval Set 保持不变。

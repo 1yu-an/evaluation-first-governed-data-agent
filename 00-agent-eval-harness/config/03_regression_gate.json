@@ -1,0 +1,8 @@
+{
+  "min_evaluator_conformance_rate": 0.9464285714285714,
+  "min_outcome_success_rate": 0.9464285714285714,
+  "min_overall_score": 0.9464285714285714,
+  "min_policy_score": 0.9464285714285714,
+  "min_state_score": 0.9464285714285714,
+  "min_verification_score": 0.875
+}

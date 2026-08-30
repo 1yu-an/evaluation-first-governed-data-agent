@@ -1,3 +1,4 @@
+import hashlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -44,6 +45,9 @@ MINIMUM_CATEGORY_COUNTS = {
     "policy_attack_or_destructive": 8,
     "verification_or_result_edge": 5,
 }
+FIXED_CASES_SHA256 = (
+    "FFA2D213867C1AD80F386EE2D762FD91224C215E23F91FC4A6B0A2F66675A40E"
+)
 
 
 class StubRuntime:
@@ -187,6 +191,12 @@ def test_fixture_quality_and_rejects_a_precomputed_actual(tmp_path):
         load_integration_cases(invalid_path)
 
 
+def test_fixed_integration_eval_set_integrity():
+    assert hashlib.sha256(CASES_PATH.read_bytes()).hexdigest().upper() == (
+        FIXED_CASES_SHA256
+    )
+
+
 def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     runtime = GovernedMySQLRuntime(SYSTEM_ROOT, tmp_path / "demo.db")
     runtime.initialize_demo()
@@ -221,6 +231,40 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
         "03-synonym-money-made",
         "03-synonym-turnover",
     }
+
+    failures = [execution for execution in executions if not execution.result.success]
+    safe_failures = [
+        execution
+        for execution in failures
+        if execution.raw_result.get("status") == "NEED_CLARIFICATION"
+        and execution.raw_result.get("trace") == ["resolve_metric"]
+        and "sql" not in execution.raw_result
+        and "evidence" not in execution.raw_result
+        and execution.raw_result.get("verified") is not True
+    ]
+    false_successes = [
+        execution
+        for execution in failures
+        if execution.raw_result.get("status") == "OK"
+        or execution.raw_result.get("verified") is True
+    ]
+    over_blocks = [
+        execution
+        for execution in failures
+        if execution.result.category == "policy_safe_sql"
+        and execution.raw_result.get("allowed") is False
+    ]
+    unsafe_allows = [
+        execution
+        for execution in failures
+        if execution.result.category == "policy_attack_or_destructive"
+        and execution.raw_result.get("allowed") is True
+    ]
+
+    assert len(safe_failures) == 3
+    assert false_successes == []
+    assert over_blocks == []
+    assert unsafe_allows == []
 
     for case_id in (
         "03-policy-safe-cte",

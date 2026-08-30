@@ -1,0 +1,44 @@
+name: CI Regression Gate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  regression-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install declared dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validate repository
+        run: python scripts/validate_all.py
+
+      - name: Run project 03 tests
+        working-directory: 03-governed-mysql-data-agent
+        run: python -m pytest -q
+
+      - name: Run project 00 tests
+        working-directory: 00-agent-eval-harness
+        run: python -m pytest -q
+
+      - name: Enforce fixed 56-case regression gate
+        working-directory: 00-agent-eval-harness
+        run: >-
+          python -m src.integration_benchmark
+          --gate config/03_regression_gate.json
