@@ -1,307 +1,89 @@
 # Current Repository State
 
-Verified on: 2026-08-29 (Asia/Shanghai)
+Verified on: 2026-08-30 (Asia/Shanghai)
+Frozen feature commit: `68795ef10b5c54a999eae3cc2e956595030cf1df`
 
-This file records only facts checked in the current workspace. The repository
-contains the baseline commit `c79a809`, the reusable evaluation/integration
-commit `13027ce`, the frozen 56-case Baseline v0 commit `e2e26c9`, Semantic Plan
-commit `3fa52d2`, AST SQL Policy commit `e2e94d7`, and Phase G analysis commit
-`39a0c49`. Improvement v2 is committed as `5c66e81`; Improvement v3 is currently
-kept in the working tree for review and is not committed.
+This file is a concise status snapshot, not a second project README. The
+reviewer-facing source of truth for project 03 is
+[`03-governed-mysql-data-agent/README.md`](03-governed-mysql-data-agent/README.md).
 
-## Git baseline
+## Feature status
 
-- Immediately before the first baseline commit was prepared, the repository had
-  no commits: `git log --oneline --all` returned no entries and `git status`
-  reported `No commits yet on master`.
-- That pre-commit working tree contained staged files, modified files, and
-  untracked files. The verified project source, tests, documentation, and project
-  assets were collected into the first baseline commit rather than discarded.
-- The reproducible `00-agent-eval-harness/reports/` output and Python/pytest
-  caches are ignored and are not baseline source artifacts.
-- Existing user work was preserved. No reset, checkout, or clean operation was
-  performed while establishing the baseline.
+Project 03 feature development is frozen. The current scope is an
+evaluation-first governed data-agent prototype with deterministic semantics,
+fail-closed behavior, AST SQL policy, least-privilege execution, strict result
+contracts, and a fixed external Benchmark.
 
-## Repository validation
+## Final architecture
 
-- `scripts/validate_all.py` completed successfully on 2026-08-28.
-- The validator confirmed that all seven required project directories exist and
-  that the Python and JSON files it scanned were parseable.
-- This validator is a structure/syntax check; it is not a substitute for each
-  project's behavioral test suite.
+```text
+Question
+→ Governed Resolver
+→ SemanticPlan
+→ Metric Catalog
+→ Deterministic Compiler
+→ AST SQL Policy
+→ QueryExecutor
+→ SQLite / MySQL
+→ Database Least Privilege
+→ Strict Result Verification
+→ Eval / Benchmark / Regression Gate
+```
 
-## 00-agent-eval-harness
+## Verified results
 
-### Tests
+- Project 03 ordinary suite: `172 passed, 1 skipped, 13 subtests passed`.
+- Project 00 suite: `57 passed`.
+- Repository structure/source validation: passed.
+- Fixed 56-case system Benchmark: `53 / 56` success.
+- Dimension results: outcome/conformance/state/policy/overall `0.946429`;
+  verification `21 / 24 = 0.875000`.
+- Safety classification: `SAFE_FAILURE=3`, `FALSE_SUCCESS=0`,
+  `UNSAFE_ALLOW=0`, `OVER_BLOCK=0`.
+- Fixed Eval Set SHA-256:
+  `FFA2D213867C1AD80F386EE2D762FD91224C215E23F91FC4A6B0A2F66675A40E`.
 
-- Before the baseline test addition: 10 pytest tests passed.
-- After the fixture + monkeypatch test addition: 11 pytest tests passed.
-- After dimensional evaluation v0.1: 14 pytest tests passed.
-- After Tool Sequence Evaluation and eval-set expansion: 30 pytest tests passed.
-- After Benchmark Report and Regression Gate: 41 pytest tests passed.
-- Before project 03 integration: 41 pytest tests passed.
-- After project 03 integration: 48 project 00 pytest tests passed; project 03
-  increased from 3 to 6 passing pytest tests.
-- After case-specific required-dimension semantics: 57 project 00 pytest tests
-  passed; project 03 remains at 6 passing tests.
-- After expanding the integration fixture to 56 cases: 57 project 00 pytest
-  tests passed; project 03 remains at 6 passing tests.
-- After Semantic Plan Improvement v1 and anti-overfitting review: 57 project 00
-  pytest tests passed; project 03 increased from 6 to 21 passing tests.
+## MySQL safety evidence
 
-### Current capabilities
+The opt-in real MySQL 8.0 integration suite passed `8 / 8` on the frozen feature
+commit. The runtime account had only `USAGE` plus `SELECT` on its target
+database. Direct UPDATE, INSERT, and DELETE attempts were rejected by MySQL
+independently of the application AST Policy. SQLite and MySQL evidence matched
+for all governed queries in the parity test.
 
-- Deterministically compares every field in a case's `expected` mapping with the
-  supplied observable `actual` mapping.
-- Emits independent State, Policy, and Verification results, each with a
-  normalized score, pass/fail flag, and reason.
-- Derives `overall_score` from the preserved weights: State 0.6, Policy 0.2,
-  Verification 0.2.
-- Supports case-specific `required_dimensions`, defaulting to all three
-  dimensions for full backward compatibility.
-- Defines success as every required dimension passing. Non-required dimensions
-  are explicitly represented as N/A rather than FAIL.
-- Re-normalizes `overall_score` over required dimensions only, so N/A evidence
-  never lowers the case score.
-- Rejects missing or non-object `expected` and `actual` fields with explicit
-  validation errors.
-- Evaluates required tools, forbidden tools, and simple pairwise tool order as
-  deterministic Policy evidence while preserving State and Verification
-  responsibility boundaries.
-- Rejects malformed tool traces and tool rules with stable validation errors.
-- Includes a 33-case evaluation set with stable IDs across nine categories.
-- Separates outcome success from evaluator fixture conformance through an
-  explicit boolean `expected_success` contract on all 33 benchmark cases.
-- Produces deterministic JSON and Markdown Benchmark Reports with dimension
-  averages, category breakdowns, failure analysis, and explicit unavailable
-  metrics when latency/cost data is absent.
-- Applies configurable Regression Gate thresholds independently of the legacy
-  runner. The default gate requires evaluator conformance of 1.0 and does not
-  gate the adversarial corpus on outcome success.
-- Prints per-case results and an average score through the CLI.
-- Returns CLI exit code 0 only when all cases pass, otherwise exit code 2.
-- Optionally writes a UTF-8 Markdown summary, compatibility case table, and
-  dimension-evidence table, creating parent directories as needed.
-- Has pytest coverage for scoring behavior, failure reasons, Markdown reporting,
-  responsibility isolation, aggregation, malformed cases, runner exit behavior,
-  and the runner-to-reporter dependency boundary.
+MySQL remains an external, opt-in environment; the default demo and fixed
+Benchmark use deterministic SQLite.
 
-### Explicit gaps
+## Remaining SAFE_FAILURE cases
 
-- The 33-case Harness Benchmark still supplies `actual` data directly by design.
-  The separate 56-case project 03 Integration Benchmark executes the real 03
-  runtime and dynamically constructs `actual` through a thin adapter.
-- Tool traces, `policy_violation`, and `verified` are still supplied observations;
-  the harness does not independently collect their evidence provenance.
-- Project 03 verification currently proves only a deterministic non-null metric
-  result signal, not production-grade independent business validation or
-  evidence provenance.
-- CI has not been added because the repository still lacks the intended
-  two-stage commit history.
+The final three cases intentionally return `NEED_CLARIFICATION` after Resolver
+only and emit no SQL or business value:
 
-### Verified 33-case benchmark
+- `money made`
+- `turnover`
+- `fulfilled purchases`
 
-- Total cases: 33
-- Outcome success rate: 0.242424 (8/33)
-- Evaluator conformance rate: 1.000000 (33/33)
-- State average: 0.787879
-- Policy average: 0.545455
-- Verification average: 0.818182
-- Overall average: 0.745455
-- Latency metrics: not available
-- Cost metrics: not available
+They are retained because their business meanings are ambiguous; 53/56 is the
+declared final governed result, not an unfinished target on the way to 56/56.
 
-## 03-governed-mysql-data-agent
+## Important commits
 
-- Its README describes a governed data agent with a semantic layer, query safety,
-  pre-execution validation, and evidence. The checked-in demo defaults to SQLite,
-  and a MySQL schema file is present.
-- Its current runtime chain is `question -> SemanticPlan -> deterministic SQL
-  compiler -> validate_sql -> SQLite execute -> verify_evidence -> result`.
-  Unknown metrics stop after resolution; standalone policy evaluation stops
-  after `validate_sql`.
-- It now emits only the stages actually reached in a deterministic `trace`.
-- Successful metric-query verification checks that the returned evidence has a
-  non-null value under the resolved metric key. This is a real program check but
-  remains weaker than independent production verification.
-- The project remains independently runnable and does not import project 00.
+| Commit | Change |
+|---|---|
+| `e2e26c9` | establish frozen 56-case Baseline v0 (37/56) |
+| `3fa52d2` | add SemanticPlan safety gate |
+| `e2e94d7` | replace regex SQL policy with AST validation |
+| `5c66e81` | add filter-aware deterministic SQL compiler |
+| `b4a38df` | add read-only MySQL execution boundary |
+| `285ff21` | add strict result verification contract |
+| `d6aafea` | add governed metric lexicon resolver |
+| `f2a1392` | add governed metric catalog and payment metrics |
+| `07e8fdb` | add governed pending-orders metric |
+| `68795ef` | add governed maximum completed-order metric; freeze features |
 
-### Verified 56-case real integration baseline v0
+## Freeze declaration
 
-- Actual source: dynamically executed project 03 runtime; no fixture contains
-  `actual`
-- Total cases: 56
-- Successful / failed outcomes: 37 / 19
-- Outcome success rate: 0.660714
-- Evaluator conformance rate: 0.660714
-- State average: 0.660714
-- Policy average: 0.714286
-- Verification average: 0.458333 across 24 applicable cases
-- Overall average: 0.676786
-- Largest failure categories: synonym/paraphrase 8, result edge 6,
-  ambiguous input 3, safe SQL false rejection 2
-- Full case distribution and five representative Bad Cases are recorded in
-  `03-governed-mysql-data-agent/BASELINE_V0.md`.
-
-## Remaining after Baseline v0 measurement
-
-Project 00 has no remaining independent framework capability gap. The 19 real
-03 failures are measurement evidence for future work; none were fixed in this
-phase. Future changes should be driven by these reproducible Bad Cases rather
-than by independent framework expansion.
-
-Risk analysis classifies the 19 failures as 13 SAFE_FAILURE, 4 FALSE_SUCCESS,
-2 OVER_BLOCK, 0 UNSAFE_ALLOW, and 0 OTHER. Resolver/Semantic is the primary
-responsibility layer for 17; Policy is primary for 2; Verification contributes
-to all 4 FALSE_SUCCESS cases by accepting result shape without full request
-agreement. Full reasoning and priorities are in
-`03-governed-mysql-data-agent/BASELINE_V0.md`.
-
-## Semantic Plan Improvement v1 (commit `3fa52d2`)
-
-- Adds a minimal `SemanticPlan` with explicit `metric`, `filters`, `status`, and
-  `reason` fields and no third-party dependency.
-- Blocks multiple recognized metrics, explicitly vague scope wording, and
-  recognized-but-unsupported region filters before SQL policy or execution.
-- Preserves normal canonical and configured-alias queries.
-- Does not expand synonym mappings, change the 56-case Eval Set, modify project
-  00 evaluator rules, or refactor Verification.
-- Anti-overfitting review replaced a benchmark-derived phrase-prefix check with
-  a single-metric plus unspecified-scope-cue condition. Unseen multi-metric,
-  west-region, ambiguity, and normal single-metric wording tests all pass.
-- Original FALSE_SUCCESS cases change as follows: three ambiguous cases become
-  successful clarification outcomes; the north-region revenue case becomes a
-  SAFE_FAILURE because unsupported scope is preserved and stopped before SQL.
-
-### Before -> after 56-case metrics
-
-| metric | Baseline v0 | Improvement v1 |
-|---|---:|---:|
-| Successful outcomes | 37 | 40 |
-| Failed outcomes | 19 | 16 |
-| Outcome success rate | 0.660714 | 0.714286 |
-| SAFE_FAILURE | 13 | 14 |
-| FALSE_SUCCESS | 4 | 0 |
-| OVER_BLOCK | 2 | 2 |
-| UNSAFE_ALLOW | 0 | 0 |
-| State average | 0.660714 | 0.714286 |
-| Policy average | 0.714286 | 0.750000 |
-| Verification average | 0.458333 | 0.416667 |
-| Overall average | 0.676786 | 0.723214 |
-
-The lower Verification average is expected: the north-region request no longer
-executes an incorrect global query that previously received `verified=true`.
-There are no new failing case IDs; the remaining 16 are a strict subset of the
-Baseline v0 failures.
-
-## Phase G — Remaining Failure Analysis (commit `39a0c49`)
-
-Verified on 2026-08-29 after commits `3fa52d2` (Semantic Plan safety gate) and
-`e2e94d7` (AST SQL Policy v1). This phase changes documentation only; production
-code and the 56-case Eval Set remain unchanged.
-
-- Project 03: 36 pytest tests plus 13 subtests passed.
-- Project 00: 57 pytest tests passed.
-- `scripts/validate_all.py`: passed.
-- Real 03 Integration Benchmark: 56 total, 42 success, 14 failure, outcome
-  success rate 0.750000.
-- Severity: 14 SAFE_FAILURE, 0 FALSE_SUCCESS, 0 OVER_BLOCK, 0 UNSAFE_ALLOW,
-  0 OTHER.
-- Remaining categories: 8 synonym/paraphrase and 6 result-edge.
-- First-failing responsibility: Resolver/Semantic matching 10, Semantic catalog
-  3, Semantic-plan-to-SQL boundary 1. No remaining case reaches SQL Policy,
-  execution, or verification.
-- Independent demo-data queries reproduce all six result-edge expected values;
-  dataset absence is not a primary cause.
-- The 14 cases reduce to three shared gaps: fixed-vocabulary recall for eight
-  supported-metric paraphrases, missing executable filter/scope compilation for
-  three cases, and three absent governed aggregate definitions/operators.
-- Exactly one recommended next capability is a filter-aware logical plan plus
-  deterministic SQL compiler. It has higher governed-agent reuse and controls
-  a higher latent wrong-scope cost than case-local synonym or aggregate patches.
-
-The complete 14-case table, result-edge A–F classification, root-cause grouping,
-priority reasoning, and rejected alternatives are recorded in
-`03-governed-mysql-data-agent/BASELINE_V0.md`. No capability was implemented and
-nothing beyond the two analysis documents was included in the Phase G commit.
-
-## Improvement v2 — Filter-aware Logical Plan + Deterministic SQL Compiler (`5c66e81`)
-
-Working-tree implementation verified on 2026-08-29 and revalidated on 2026-08-30:
-
-- Adds a `CompiledQuery(sql, result_metric, params)` boundary between
-  `SemanticPlan` and SQL Policy. The compiler consumes only the structured plan,
-  never the question.
-- Keeps the three existing canonical metric definitions. It does not add
-  completed-refund, gross-payment, pending-order, or maximum-order metrics and
-  does not expand synonym resolution.
-- Supports equality filtering by `region` for all three canonical metrics using
-  a fixed field/operator/value contract and bound `?` parameters. North, south,
-  east, and west share the same compilation path. A controlled scoped evidence
-  key records the applied filter without placing the filter value in SQL text.
-- Preserves explicit status filters but rejects them at compile time because the
-  existing catalog has status-specific metric semantics rather than a neutral
-  order-count metric. Unknown fields, unknown region values, and invalid shapes
-  likewise fail before policy execution or database access.
-- Routes every compiled SQL statement through the existing AST policy before
-  execution and retains the existing non-null canonical-metric verification.
-- Project 03: 50 pytest tests plus 13 subtests passed. Project 00: 57 pytest
-  tests passed.
-
-### Before -> after 56-case dimensional result
-
-The Eval Set is unchanged. The semantic plan retains canonical metric `revenue`;
-the compiled result exposes the controlled scoped evidence key `north_revenue`,
-so the north-region case now passes all three required dimensions.
-
-| metric | Before | Improvement v2 |
-|---|---:|---:|
-| Successful outcomes | 42 | 43 |
-| Failed outcomes | 14 | 13 |
-| Outcome success rate | 0.750000 | 0.767857 |
-| State average | 0.750000 | 0.767857 |
-| Policy average | 0.750000 | 0.767857 |
-| Verification average | 0.416667 | 0.458333 |
-| Overall average | 0.750000 | 0.767857 |
-| `verification_or_result_edge` whole-case successes | 0 / 6 | 1 / 6 |
-
-For `revenue for the north region`, the actual runtime now emits canonical
-metric `revenue`, filters `{region: north}`, parameterized SQL, params
-`[north, north]`, and evidence `{north_revenue: 0.0}`. The remaining east-completed-
-orders case still stops safely at base-metric recognition, as required; no
-synonym rule was added to make it pass.
-
-## Improvement v3 — Real MySQL Read-only Execution (working tree)
-
-Working-tree implementation verified on 2026-08-29:
-
-- Replaces the direct SQLite call inside `DataAgent` with one minimal
-  `QueryExecutor.execute(CompiledQuery)` boundary. SQLite remains the default;
-  MySQL is selected explicitly with `DATA_AGENT_EXECUTOR=mysql`.
-- `MySQLExecutor` uses Connector/Python 9.7 prepared cursors and passes the
-  compiler's `?` SQL plus tuple params unchanged. It never concatenates filter
-  values or performs placeholder replacement.
-- All runtime MySQL connection values come from environment variables. Admin
-  credentials are confined to `scripts/setup_mysql.py`; the agent runtime reads
-  only the separate read-only account values.
-- The setup path creates the demo schema/seed and resets the agent account to
-  one database-level `SELECT` grant. Docker Compose contains only MySQL, while
-  an already installed server can use the same setup script.
-- A gated real integration module checks SELECT, direct database rejection of
-  UPDATE/INSERT/DELETE without calling Policy, and SQLite/MySQL parity for
-  revenue, completed orders, average order value, and north-region revenue.
-- Docker is not installed on the current host, and the existing MySQL80 service
-  rejected the only safe no-password admin probe with MySQL error 1045. Real
-  verification instead used the installed MySQL Community 8.0.46 binaries to
-  start an isolated temporary server on port 33307 without touching MySQL80.
-  The project setup produced only `USAGE` plus `SELECT ON data_agent.*`; direct
-  SELECT succeeded while UPDATE, INSERT, and DELETE each failed with MySQL error
-  1142. The opt-in real integration suite passed all 5 tests, and exact evidence
-  parity held for revenue (180.0), completed orders (2), average order value
-  (100.0), and north-region revenue (0.0). The temporary server was then shut
-  down cleanly and its temporary data removed.
-- Project 03: 59 pytest tests passed, 1 real-MySQL module skipped, and 13
-  subtests passed in the ordinary suite; the separately enabled real-MySQL
-  suite passed 5/5. Project 00: 57 pytest tests passed. `validate_all.py` passed.
-- The unchanged SQLite 56-case Benchmark remains 43/56 with outcome success
-  rate 0.767857, 0 FALSE_SUCCESS, 0 OVER_BLOCK, and 0 UNSAFE_ALLOW.
+Do not add metrics, broaden ambiguous resolver mappings, modify the fixed Eval
+Set, or pursue 56/56 as packaging work. Subsequent changes should be limited to
+delivery documentation, dependency closure, reproducibility, or corrections to
+evidence about the frozen implementation.

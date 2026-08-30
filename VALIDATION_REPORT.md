@@ -1,4 +1,13 @@
-# Validation Report / 验证报告
+# Historical Validation Report / 历史验证报告
+
+> This is an early one-time package validation snapshot. It predates the final
+> project 03 implementation and must not be used as the current test or Benchmark
+> status. Current authoritative information is maintained in:
+>
+> - [`03-governed-mysql-data-agent/README.md`](03-governed-mysql-data-agent/README.md)
+> - [`CURRENT_STATE.md`](CURRENT_STATE.md)
+
+## Original historical snapshot / 原始历史快照
 
 Generated package validation status / 生成包验证状态：
 

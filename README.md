@@ -4,6 +4,19 @@
 
 本仓库不是“教程 Demo 合集”，而是一套围绕 **architecture（架构）→ execution（执行）→ verification（验证）→ evaluation（评测）→ observability（可观测性）→ governance（治理）** 构建的作品集实践。
 
+## Reviewer entrypoint / 求职审查入口
+
+如果你正在审查 AI Application Engineer、LLM Application Engineer 或 FDE
+候选项目，请优先查看：
+
+1. [03 Governed MySQL Data Agent](03-governed-mysql-data-agent/README.md)：当前完成的
+   evaluation-first governed agent 主案例、快速演示、架构、安全边界和工程演进证据。
+2. [00 Agent Eval Harness](00-agent-eval-harness/README.md)：03 使用的固定评测集、
+   维度化评测、Benchmark Report 和 Regression Gate。
+
+03 README 是该项目面向 reviewer 的权威入口；`CURRENT_STATE.md` 只记录简洁的
+仓库状态快照。
+
 ## Projects / 项目
 
 | ID | Project | Core proof / 核心能力证明 | Suggested time / 建议投入 |
@@ -45,7 +58,7 @@
 ## Shared commands / 通用命令
 
 ```bash
-python3 scripts/validate_all.py
+python scripts/validate_all.py
 ```
 
 该脚本检查 Python 语法、JSON/YAML-like 配置、关键目录和 Java 源文件基础结构。Spring Boot 项目如本机有 Maven，可进一步运行：
