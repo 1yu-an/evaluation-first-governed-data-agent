@@ -4,8 +4,10 @@ from unittest.mock import patch
 import pytest
 
 from src.agent import DataAgent
-from src.compiler import BASE_SQL, CompiledQuery
+from src.compiler import CompiledQuery, compile_plan
 from src.demo import initialize_demo
+from src.semantic import build_semantic_plan
+from src.verification import ResultContract
 
 
 class StaticEvidenceExecutor:
@@ -26,6 +28,7 @@ def test_result_contract_cannot_prove_wrong_metric_sql(tmp_path):
             "WHERE status='completed'"
         ),
         result_metric="revenue",
+        result_contract=ResultContract.scalar_numeric("revenue"),
     )
 
     with patch("src.agent.compile_plan", return_value=wrong_query):
@@ -37,9 +40,11 @@ def test_result_contract_cannot_prove_wrong_metric_sql(tmp_path):
 
 def test_result_contract_cannot_prove_sql_applied_scope(tmp_path):
     db_path = initialize_demo(tmp_path / "wrong-scope.db")
+    unfiltered_sql = compile_plan(build_semantic_plan("revenue")).sql
     unfiltered_query = CompiledQuery(
-        sql=BASE_SQL["revenue"],
+        sql=unfiltered_sql,
         result_metric="north_revenue",
+        result_contract=ResultContract.scalar_numeric("north_revenue"),
     )
 
     with patch("src.agent.compile_plan", return_value=unfiltered_query):
@@ -59,6 +64,7 @@ def test_result_contract_cannot_prove_sql_aggregation(tmp_path):
             "WHERE status='completed'"
         ),
         result_metric="avg_order_value",
+        result_contract=ResultContract.scalar_numeric("avg_order_value"),
     )
 
     with patch("src.agent.compile_plan", return_value=wrong_query):
@@ -110,6 +116,7 @@ def test_multiple_rows_fail_closed_instead_of_being_truncated(tmp_path):
             "WHERE status='completed' ORDER BY id"
         ),
         result_metric="revenue",
+        result_contract=ResultContract.scalar_numeric("revenue"),
     )
     with sqlite3.connect(db_path) as connection:
         source_rows = connection.execute(multirow_query.sql).fetchall()

@@ -20,6 +20,7 @@ from src.executor import (
     MySQLExecutor,
     SQLiteExecutor,
 )
+from src.verification import ResultContract
 
 
 @pytest.fixture(scope="module")
@@ -57,7 +58,11 @@ def _direct_connection(config):
 def test_mysql_executor_enforces_scalar_cardinality(
     mysql_executor, sql, expected, error
 ):
-    query = CompiledQuery(sql=sql, result_metric="value")
+    query = CompiledQuery(
+        sql=sql,
+        result_metric="value",
+        result_contract=ResultContract.scalar_numeric("value"),
+    )
 
     if error is None:
         assert mysql_executor.execute(query) == expected
@@ -122,6 +127,8 @@ def test_sqlite_and_mysql_return_identical_business_evidence(
         "revenue",
         "completed_orders",
         "avg_order_value",
+        "gross completed payment amount",
+        "total completed refunds",
         "revenue for the north region",
     ):
         sqlite_result = sqlite_agent.answer(question)

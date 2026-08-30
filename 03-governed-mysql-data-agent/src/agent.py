@@ -1,6 +1,7 @@
+from .catalog import METRIC_CATALOG
 from .compiler import CompileError, compile_plan
 from .executor import ExecutionError, QueryExecutor, SQLiteExecutor
-from .semantic import METRICS, PLAN_READY, build_semantic_plan
+from .semantic import PLAN_READY, build_semantic_plan
 from .policy import validate_sql
 from .verification import verify_evidence
 
@@ -96,7 +97,7 @@ class DataAgent:
             "status": "OK",
             "metric": compiled.result_metric,
             "semantic_plan": plan.to_dict(),
-            "definition": METRICS[metric]["description"],
+            "definition": METRIC_CATALOG[metric].business_meaning,
             "sql": sql,
             "params": list(compiled.params),
             "evidence": evidence,

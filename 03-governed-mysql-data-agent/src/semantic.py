@@ -1,40 +1,11 @@
 import re
 from dataclasses import asdict, dataclass
 
-
-METRICS = {
-    "revenue": {
-        "description": "Completed payment amount minus completed refunds / 已完成付款减已完成退款",
-    },
-    "completed_orders": {
-        "description": "Count of completed orders / 已完成订单数量",
-    },
-    "avg_order_value": {
-        "description": "Average total for completed orders / 已完成订单平均客单价",
-    },
-}
+from .catalog import COUNT_INTENT, METRIC_DEFINITIONS, NET_OF, CompositionPattern
 
 
 PLAN_READY = "READY"
 PLAN_NEEDS_CLARIFICATION = "NEED_CLARIFICATION"
-
-
-@dataclass(frozen=True)
-class MetricLexiconEntry:
-    """Governed language forms for one existing metric."""
-
-    metric: str
-    canonical_forms: tuple[str, ...]
-    aliases: tuple[str, ...] = ()
-    cjk_aliases: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class CompositionRule:
-    """Match a reusable semantic family, never a complete benchmark question."""
-
-    metric: str
-    required_feature_groups: tuple[frozenset[str], ...]
 
 
 @dataclass(frozen=True)
@@ -46,61 +17,11 @@ class GuardRule:
     any_features: frozenset[str] = frozenset()
 
 
-METRIC_LEXICON = (
-    MetricLexiconEntry(
-        metric="revenue",
-        canonical_forms=("revenue",),
-        aliases=("net revenue",),
-        cjk_aliases=("收入", "营收"),
-    ),
-    MetricLexiconEntry(
-        metric="completed_orders",
-        canonical_forms=("completed_orders", "completed orders"),
-        aliases=("completed order count",),
-        cjk_aliases=("订单数",),
-    ),
-    MetricLexiconEntry(
-        metric="avg_order_value",
-        canonical_forms=("avg_order_value", "average order value"),
-        aliases=("aov",),
-        cjk_aliases=("客单价",),
-    ),
-)
-
-COUNT_INTENT = "__count_intent__"
-NET_OF = "__net_of__"
-COMPOSITION_RULES = (
-    CompositionRule(
-        metric="completed_orders",
-        required_feature_groups=(
-            frozenset({"completed", "finished"}),
-            frozenset({"order"}),
-            frozenset({COUNT_INTENT}),
-        ),
-    ),
-    CompositionRule(
-        metric="avg_order_value",
-        required_feature_groups=(
-            frozenset({"avg", "average", "mean"}),
-            frozenset({"order", "basket"}),
-            frozenset({"value", "amount"}),
-        ),
-    ),
-    CompositionRule(
-        metric="revenue",
-        required_feature_groups=(
-            frozenset({"net"}),
-            frozenset({"sale"}),
-            frozenset({"refund"}),
-            frozenset({"after", "following", NET_OF}),
-        ),
-    ),
-)
-
 SINGULAR_FORMS = {
     "amounts": "amount",
     "baskets": "basket",
     "orders": "order",
+    "payments": "payment",
     "purchases": "purchase",
     "refunds": "refund",
     "sales": "sale",
@@ -135,16 +56,28 @@ GUARD_RULES = (
         reason="negated metric semantics require clarification / 否定指标语义需要澄清",
         any_features=frozenset({"exclude", "excluding", "not", "without"}),
     ),
+    GuardRule(
+        reason="payment/refund count is not a governed metric / 付款或退款计数不是受治理指标",
+        all_features=frozenset({COUNT_INTENT}),
+        any_features=frozenset({"payment", "refund"}),
+    ),
+    GuardRule(
+        reason="pending payment/refund amount is not a governed metric / 待处理付款或退款金额不是受治理指标",
+        all_features=frozenset({"pending"}),
+        any_features=frozenset({"payment", "refund"}),
+    ),
+    GuardRule(
+        reason="failed payment/refund amount is not a governed metric / 失败付款或退款金额不是受治理指标",
+        all_features=frozenset({"failed"}),
+        any_features=frozenset({"payment", "refund"}),
+    ),
 )
 
 ALIASES = {
-    alias: entry.metric
-    for entry in METRIC_LEXICON
-    for alias in entry.cjk_aliases
+    alias: definition.metric_id
+    for definition in METRIC_DEFINITIONS
+    for alias in definition.resolver.cjk_aliases
 }
-
-if {entry.metric for entry in METRIC_LEXICON} != set(METRICS):
-    raise RuntimeError("metric lexicon must cover exactly the governed metric catalog")
 
 UNSPECIFIED_SCOPE_MARKERS = ("一下",)
 REGION_PATTERNS = (
@@ -182,12 +115,17 @@ def _normalize_question(question: str) -> tuple[str, frozenset[str]]:
     return normalized, frozenset(features)
 
 
-def _contains_form(normalized: str, form: str) -> bool:
+def _contains_form(question: str, normalized: str, form: str) -> bool:
+    if "_" in form:
+        return re.search(
+            rf"(?<![a-z0-9_]){re.escape(form.lower())}(?![a-z0-9_])",
+            question.lower(),
+        ) is not None
     normalized_form, _ = _normalize_question(form)
     return f" {normalized_form} " in f" {normalized} "
 
 
-def _rule_matches(rule: CompositionRule, features: frozenset[str]) -> bool:
+def _rule_matches(rule: CompositionPattern, features: frozenset[str]) -> bool:
     return all(features.intersection(group) for group in rule.required_feature_groups)
 
 
@@ -195,18 +133,25 @@ def _metric_candidates(question: str) -> list[str]:
     normalized, features = _normalize_question(question)
     candidates = set()
 
-    for entry in METRIC_LEXICON:
-        if any(alias in question for alias in entry.cjk_aliases) or any(
-            _contains_form(normalized, form)
-            for form in entry.canonical_forms + entry.aliases
+    for definition in METRIC_DEFINITIONS:
+        metadata = definition.resolver
+        if any(alias in question for alias in metadata.cjk_aliases) or any(
+            _contains_form(question, normalized, form)
+            for form in metadata.canonical_forms + metadata.aliases
         ):
-            candidates.add(entry.metric)
+            candidates.add(definition.metric_id)
 
-    for rule in COMPOSITION_RULES:
-        if _rule_matches(rule, features):
-            candidates.add(rule.metric)
+        if any(
+            _rule_matches(pattern, features)
+            for pattern in metadata.composition_patterns
+        ):
+            candidates.add(definition.metric_id)
 
-    return [metric for metric in METRICS if metric in candidates]
+    return [
+        definition.metric_id
+        for definition in METRIC_DEFINITIONS
+        if definition.metric_id in candidates
+    ]
 
 
 def _guard_reason(question: str) -> str | None:

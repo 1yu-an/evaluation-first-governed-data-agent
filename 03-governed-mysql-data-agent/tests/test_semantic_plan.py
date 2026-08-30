@@ -1,11 +1,9 @@
 import pytest
 
 from src.agent import DataAgent
+from src.catalog import METRIC_CATALOG, METRIC_DEFINITIONS
 from src.demo import initialize_demo
 from src.semantic import (
-    COMPOSITION_RULES,
-    METRIC_LEXICON,
-    METRICS,
     PLAN_NEEDS_CLARIFICATION,
     PLAN_READY,
     build_semantic_plan,
@@ -144,7 +142,7 @@ def test_net_sales_after_refunds_uses_existing_revenue_definition(tmp_path):
 
     assert result["status"] == "OK"
     assert result["metric"] == "revenue"
-    assert result["definition"] == METRICS["revenue"]["description"]
+    assert result["definition"] == METRIC_CATALOG["revenue"].business_meaning
     assert result["evidence"] == {"revenue": 180.0}
     assert "payments" in result["sql"]
     assert "refunds" in result["sql"]
@@ -235,6 +233,26 @@ def test_canonical_forms_and_existing_aliases_do_not_regress(question, metric):
             "revenue",
             {"revenue": 180.0},
         ),
+        (
+            "sum of completed refunds",
+            "completed_refunds",
+            {"completed_refunds": 20.0},
+        ),
+        (
+            "completed refund amount",
+            "completed_refunds",
+            {"completed_refunds": 20.0},
+        ),
+        (
+            "total amount of completed payments",
+            "completed_payments",
+            {"completed_payments": 200.0},
+        ),
+        (
+            "gross completed payments",
+            "completed_payments",
+            {"completed_payments": 200.0},
+        ),
     ],
 )
 def test_eval_set_outside_paraphrases_use_reusable_families(
@@ -248,11 +266,83 @@ def test_eval_set_outside_paraphrases_use_reusable_families(
     assert result["metric"] == metric
     assert result["evidence"] == evidence
     assert result["verified"] is True
+    assert result["trace"] == [
+        "resolve_metric",
+        "compile_query",
+        "validate_sql",
+        "execute_sql",
+        "verify_evidence",
+    ]
 
 
-def test_governed_lexicon_and_composition_rules_cover_only_catalog_metrics():
-    assert {entry.metric for entry in METRIC_LEXICON} == set(METRICS)
-    assert {rule.metric for rule in COMPOSITION_RULES} <= set(METRICS)
+def test_resolver_uses_every_catalog_definition_without_external_metric_refs():
+    assert {
+        definition.metric_id for definition in METRIC_DEFINITIONS
+    } == set(METRIC_CATALOG)
+
+
+@pytest.mark.parametrize(
+    ("question", "metric", "evidence"),
+    [
+        (
+            "total completed refunds",
+            "completed_refunds",
+            {"completed_refunds": 20.0},
+        ),
+        (
+            "gross completed payment amount",
+            "completed_payments",
+            {"completed_payments": 200.0},
+        ),
+    ],
+)
+def test_new_metrics_complete_the_full_governed_chain(
+    question, metric, evidence, tmp_path
+):
+    db_path = initialize_demo(tmp_path / f"{metric}.db")
+
+    result = DataAgent(db_path).answer(question)
+
+    assert result["status"] == "OK"
+    assert result["metric"] == metric
+    assert result["evidence"] == evidence
+    assert result["definition"] == METRIC_CATALOG[metric].business_meaning
+    assert result["verified"] is True
+    assert result["trace"] == [
+        "resolve_metric",
+        "compile_query",
+        "validate_sql",
+        "execute_sql",
+        "verify_evidence",
+    ]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "pending refunds",
+        "failed payments",
+        "payment count",
+        "refund count",
+        "pending payment amount",
+        "failed refund amount",
+        "completed payment count",
+        "completed refund count",
+    ],
+)
+def test_payment_refund_sum_negative_expressions_fail_before_sql(
+    question, tmp_path
+):
+    db_path = tmp_path / "must-not-be-opened.db"
+
+    result = DataAgent(db_path).answer(question)
+
+    assert result["status"] == "NEED_CLARIFICATION"
+    assert result["semantic_plan"]["metric"] is None
+    assert result["trace"] == ["resolve_metric"]
+    assert "sql" not in result
+    assert "verified" not in result
+    assert not db_path.exists()
 
 
 def test_unseen_multiple_metric_wording_generalizes_to_clarification():

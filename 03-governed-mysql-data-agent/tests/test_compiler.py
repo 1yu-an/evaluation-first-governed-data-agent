@@ -1,5 +1,6 @@
 import pytest
 
+from src.catalog import METRIC_CATALOG
 from src.compiler import CompileError, compile_plan
 from src.policy import validate_sql
 from src.semantic import PLAN_READY, SemanticPlan, build_semantic_plan
@@ -23,6 +24,7 @@ def test_revenue_without_filters_preserves_the_canonical_query():
     assert compiled.result_contract.expected_type == "numeric"
     assert compiled.result_contract.nullable is False
     assert compiled.result_contract.cardinality == "exactly_one"
+    assert compiled.result_contract is METRIC_CATALOG["revenue"].result_contract
     assert compiled.sql == (
         "SELECT ROUND(COALESCE((SELECT SUM(amount) FROM payments "
         "WHERE status='completed'),0) - COALESCE((SELECT SUM(amount) "
@@ -88,3 +90,30 @@ def test_all_existing_metrics_use_the_same_region_filter_contract():
         assert compiled.params
         assert set(compiled.params) == {"west"}
         assert compiled.result_metric == f"west_{metric}"
+
+
+@pytest.mark.parametrize(
+    ("metric", "source_table"),
+    [
+        ("completed_payments", "payments"),
+        ("completed_refunds", "refunds"),
+    ],
+)
+def test_new_sum_metrics_use_fixed_strategy_sql_and_catalog_contract(
+    metric, source_table
+):
+    compiled = compile_plan(_ready_plan(metric))
+
+    assert f"SUM(amount)" in compiled.sql
+    assert f"FROM {source_table}" in compiled.sql
+    assert "status='completed'" in compiled.sql
+    assert compiled.result_metric == metric
+    assert compiled.params == ()
+    assert compiled.result_contract is METRIC_CATALOG[metric].result_contract
+    assert validate_sql(compiled.sql) == (True, "ok")
+
+
+@pytest.mark.parametrize("metric", ["completed_payments", "completed_refunds"])
+def test_new_sum_metrics_reject_unsupported_region_filter(metric):
+    with pytest.raises(CompileError, match="unsupported filter field"):
+        compile_plan(_ready_plan(metric, {"region": "north"}))

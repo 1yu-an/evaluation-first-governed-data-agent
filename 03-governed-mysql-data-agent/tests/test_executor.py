@@ -11,6 +11,7 @@ from src.executor import (
     SQLiteExecutor,
     executor_from_env,
 )
+from src.verification import ResultContract
 
 
 class FakeCursor:
@@ -68,7 +69,10 @@ def _mysql_config():
 def test_sqlite_executor_runs_compiled_query_with_bound_params(tmp_path):
     executor = SQLiteExecutor(tmp_path / "demo.db")
     query = CompiledQuery(
-        sql="SELECT ? AS value", result_metric="value", params=(7,)
+        sql="SELECT ? AS value",
+        result_metric="value",
+        result_contract=ResultContract.scalar_numeric("value"),
+        params=(7,),
     )
 
     assert executor.execute(query) == {"value": 7}
@@ -79,6 +83,7 @@ def test_sqlite_executor_rejects_zero_rows_for_scalar_contract(tmp_path):
     query = CompiledQuery(
         sql="SELECT 1 AS value WHERE 0",
         result_metric="value",
+        result_contract=ResultContract.scalar_numeric("value"),
     )
 
     with pytest.raises(ExecutionError, match="got zero"):
@@ -91,6 +96,7 @@ def test_mysql_executor_uses_native_prepared_query_and_bound_params():
     query = CompiledQuery(
         sql="SELECT ? + ? AS revenue",
         result_metric="revenue",
+        result_contract=ResultContract.scalar_numeric("revenue"),
         params=(Decimal("200.00"), Decimal("-20.00")),
     )
 
@@ -120,6 +126,7 @@ def test_mysql_executor_rejects_multiple_rows_for_scalar_contract():
     query = CompiledQuery(
         sql="SELECT amount AS revenue FROM payments",
         result_metric="revenue",
+        result_contract=ResultContract.scalar_numeric("revenue"),
     )
 
     with pytest.raises(ExecutionError, match="more than one"):
