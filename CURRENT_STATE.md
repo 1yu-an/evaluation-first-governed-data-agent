@@ -6,8 +6,8 @@ This file records only facts checked in the current workspace. The repository
 contains the baseline commit `c79a809`, the reusable evaluation/integration
 commit `13027ce`, the frozen 56-case Baseline v0 commit `e2e26c9`, Semantic Plan
 commit `3fa52d2`, AST SQL Policy commit `e2e94d7`, and Phase G analysis commit
-`39a0c49`. Improvement v2 is currently kept in the working tree for review and
-is not committed.
+`39a0c49`. Improvement v2 is committed as `5c66e81`; Improvement v3 is currently
+kept in the working tree for review and is not committed.
 
 ## Git baseline
 
@@ -225,9 +225,9 @@ priority reasoning, and rejected alternatives are recorded in
 `03-governed-mysql-data-agent/BASELINE_V0.md`. No capability was implemented and
 nothing beyond the two analysis documents was included in the Phase G commit.
 
-## Improvement v2 — Filter-aware Logical Plan + Deterministic SQL Compiler
+## Improvement v2 — Filter-aware Logical Plan + Deterministic SQL Compiler (`5c66e81`)
 
-Working-tree implementation verified on 2026-08-29:
+Working-tree implementation verified on 2026-08-29 and revalidated on 2026-08-30:
 
 - Adds a `CompiledQuery(sql, result_metric, params)` boundary between
   `SemanticPlan` and SQL Policy. The compiler consumes only the structured plan,
@@ -270,3 +270,38 @@ metric `revenue`, filters `{region: north}`, parameterized SQL, params
 `[north, north]`, and evidence `{north_revenue: 0.0}`. The remaining east-completed-
 orders case still stops safely at base-metric recognition, as required; no
 synonym rule was added to make it pass.
+
+## Improvement v3 — Real MySQL Read-only Execution (working tree)
+
+Working-tree implementation verified on 2026-08-29:
+
+- Replaces the direct SQLite call inside `DataAgent` with one minimal
+  `QueryExecutor.execute(CompiledQuery)` boundary. SQLite remains the default;
+  MySQL is selected explicitly with `DATA_AGENT_EXECUTOR=mysql`.
+- `MySQLExecutor` uses Connector/Python 9.7 prepared cursors and passes the
+  compiler's `?` SQL plus tuple params unchanged. It never concatenates filter
+  values or performs placeholder replacement.
+- All runtime MySQL connection values come from environment variables. Admin
+  credentials are confined to `scripts/setup_mysql.py`; the agent runtime reads
+  only the separate read-only account values.
+- The setup path creates the demo schema/seed and resets the agent account to
+  one database-level `SELECT` grant. Docker Compose contains only MySQL, while
+  an already installed server can use the same setup script.
+- A gated real integration module checks SELECT, direct database rejection of
+  UPDATE/INSERT/DELETE without calling Policy, and SQLite/MySQL parity for
+  revenue, completed orders, average order value, and north-region revenue.
+- Docker is not installed on the current host, and the existing MySQL80 service
+  rejected the only safe no-password admin probe with MySQL error 1045. Real
+  verification instead used the installed MySQL Community 8.0.46 binaries to
+  start an isolated temporary server on port 33307 without touching MySQL80.
+  The project setup produced only `USAGE` plus `SELECT ON data_agent.*`; direct
+  SELECT succeeded while UPDATE, INSERT, and DELETE each failed with MySQL error
+  1142. The opt-in real integration suite passed all 5 tests, and exact evidence
+  parity held for revenue (180.0), completed orders (2), average order value
+  (100.0), and north-region revenue (0.0). The temporary server was then shut
+  down cleanly and its temporary data removed.
+- Project 03: 59 pytest tests passed, 1 real-MySQL module skipped, and 13
+  subtests passed in the ordinary suite; the separately enabled real-MySQL
+  suite passed 5/5. Project 00: 57 pytest tests passed. `validate_all.py` passed.
+- The unchanged SQLite 56-case Benchmark remains 43/56 with outcome success
+  rate 0.767857, 0 FALSE_SUCCESS, 0 OVER_BLOCK, and 0 UNSAFE_ALLOW.

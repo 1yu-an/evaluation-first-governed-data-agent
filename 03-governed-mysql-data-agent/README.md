@@ -2,8 +2,8 @@
 
 不是普通 Text-to-SQL。重点是 semantic layer（业务语义层）、query safety（查询安全）、EXPLAIN-like validation（执行前验证）和 evidence（结果证据）。
 
-默认使用 SQLite 运行确定性 demo；`schema_mysql.sql` 给出 MySQL 版本结构。
-SQL Policy 使用 `sqlglot` 的 MySQL parser/AST，因此先安装项目依赖：
+默认使用 SQLite 运行快速、确定性的 demo；真实演示可通过环境变量切换到
+MySQL 只读账号。SQL Policy 使用 `sqlglot` 的 MySQL parser/AST：
 
 ```bash
 python3 -m pip install -r requirements.txt
@@ -11,7 +11,11 @@ python3 -m pip install -r requirements.txt
 
 当前真实调用链：
 
-`question -> build_semantic_plan -> compile_plan -> validate_sql -> SQLite execute -> verify_evidence -> result`
+`question -> build_semantic_plan -> compile_plan -> validate_sql -> QueryExecutor -> verify_evidence -> result`
+
+`QueryExecutor` 是唯一数据库边界，当前有 `SQLiteExecutor` 和
+`MySQLExecutor` 两个最小实现。Agent 不导入数据库驱动，也不根据 backend 改变
+Semantic、Compiler、Policy 或 Verification 行为。
 
 `SemanticPlan` 最小契约显式包含 `metric`、`filters`、`status` 和 `reason`。
 只有 `READY` plan 可以进入 deterministic SQL compiler。多个 metric 和合同定义的
@@ -30,11 +34,56 @@ SQL Policy 只允许一条解析成功且只读的 SELECT query，包括
 确定性检查：结果必须包含目标 metric 的非空值。该信号不是生产级独立验证或
 evidence provenance（证据来源）证明。
 
-## Run / 运行
+## SQLite / 快速本地运行
+
 ```bash
 python3 scripts/init_demo.py
 python3 -m src.cli "revenue"
-python3 -m unittest discover -s tests -v
+python3 -m pytest -q
+```
+
+未设置 `DATA_AGENT_EXECUTOR` 时默认使用 SQLite，因此普通单元测试和项目 00 的
+56-case Benchmark 不依赖 MySQL。
+
+## MySQL read-only demo / MySQL 只读演示
+
+连接信息只从环境变量读取；[`.env.example`](.env.example) 仅包含占位示例，不会
+被运行时代码自动加载，也不包含真实密码。Docker 可用时，配置环境变量后运行：
+
+```bash
+docker compose --env-file .env up -d
+python3 scripts/setup_mysql.py
+```
+
+当前机器已有 MySQL 时，可以跳过 Compose，直接用管理员环境变量运行同一个 setup
+脚本。该脚本幂等创建 demo schema/seed，创建或更新 agent 账号，然后先撤销全部
+权限，再只执行：
+
+```sql
+GRANT SELECT ON `data_agent`.* TO 'data_agent_ro'@'%';
+```
+
+管理员变量只由 setup 脚本使用。Agent runtime 只读取
+`MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_AGENT_USER` 和
+`MYSQL_AGENT_PASSWORD`，不会使用 root/admin：
+
+```bash
+DATA_AGENT_EXECUTOR=mysql python3 -m src.cli "revenue for the north region"
+```
+
+MySQL executor 使用 Connector/Python prepared cursor，直接将 Compiler 的 `?`
+SQL 和 `params` 分开传递，不拼接查询，也不做字符串 placeholder 替换。
+
+安全闭环包含两层独立防线：
+
+1. AST Policy 在应用层阻止 destructive SQL。
+2. MySQL `SELECT`-only grant 在数据库层阻止写操作，即使调用方绕过 Policy。
+
+真实集成测试是显式 opt-in；它直接以只读连接尝试 UPDATE、INSERT、DELETE，并且
+该测试模块不导入或调用 `validate_sql`：
+
+```bash
+RUN_MYSQL_INTEGRATION=1 python3 -m pytest -q tests/test_mysql_integration.py
 ```
 
 项目 00 从外部运行 03 集成基准；03 的核心代码不依赖 00：
@@ -45,7 +94,6 @@ python3 -m src.integration_benchmark
 ```
 
 ## What to build next / 下一步
-- 接真实 MySQL，并使用只读账号。
 - 增加 schema retrieval + metric retrieval。
 - 扩展 logical plan 的受治理 filter/operator contract。
 - 增加 100 个 NL→business metric eval cases。

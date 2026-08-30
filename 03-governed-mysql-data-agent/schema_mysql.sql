@@ -1,6 +1,42 @@
 CREATE DATABASE IF NOT EXISTS data_agent;
 USE data_agent;
-CREATE TABLE orders(id BIGINT PRIMARY KEY,status VARCHAR(32),total DECIMAL(12,2),region VARCHAR(32));
-CREATE TABLE payments(id BIGINT PRIMARY KEY,order_id BIGINT,status VARCHAR(32),amount DECIMAL(12,2));
-CREATE TABLE refunds(id BIGINT PRIMARY KEY,order_id BIGINT,status VARCHAR(32),amount DECIMAL(12,2));
--- Production / 生产环境：为 Agent 创建只读账号，并限制到允许的 schema/table。
+
+CREATE TABLE IF NOT EXISTS orders(
+    id BIGINT PRIMARY KEY,
+    status VARCHAR(32) NOT NULL,
+    total DECIMAL(12,2) NOT NULL,
+    region VARCHAR(32) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS payments(
+    id BIGINT PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    amount DECIMAL(12,2) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS refunds(
+    id BIGINT PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    amount DECIMAL(12,2) NOT NULL
+);
+
+INSERT INTO orders(id,status,total,region) VALUES
+    (1,'completed',120.00,'east'),
+    (2,'completed',80.00,'west'),
+    (3,'pending',50.00,'east')
+ON DUPLICATE KEY UPDATE
+    status=VALUES(status), total=VALUES(total), region=VALUES(region);
+
+INSERT INTO payments(id,order_id,status,amount) VALUES
+    (1,1,'completed',120.00),
+    (2,2,'completed',80.00)
+ON DUPLICATE KEY UPDATE
+    order_id=VALUES(order_id), status=VALUES(status), amount=VALUES(amount);
+
+INSERT INTO refunds(id,order_id,status,amount) VALUES
+    (1,1,'completed',20.00)
+ON DUPLICATE KEY UPDATE
+    order_id=VALUES(order_id), status=VALUES(status), amount=VALUES(amount);
+
+-- The runtime user is deliberately not created here because its password must
+-- come from the environment. Run scripts/setup_mysql.py with admin credentials.

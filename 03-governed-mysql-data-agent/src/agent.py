@@ -1,7 +1,5 @@
-import sqlite3
-from contextlib import closing
-
 from .compiler import CompileError, compile_plan
+from .executor import ExecutionError, QueryExecutor, SQLiteExecutor
 from .semantic import METRICS, PLAN_READY, build_semantic_plan
 from .policy import validate_sql
 
@@ -15,8 +13,14 @@ def _verify_metric_evidence(metric: str, evidence: dict) -> dict:
 
 
 class DataAgent:
-    def __init__(self, db_path="demo.db"):
+    def __init__(
+        self,
+        db_path="demo.db",
+        *,
+        executor: QueryExecutor | None = None,
+    ):
         self.db_path = db_path
+        self.executor = executor or SQLiteExecutor(db_path)
 
     def answer(self, question: str) -> dict:
         trace = ["resolve_metric"]
@@ -55,10 +59,20 @@ class DataAgent:
             }
 
         trace.append("execute_sql")
-        with closing(sqlite3.connect(self.db_path)) as conn:
-            conn.row_factory = sqlite3.Row
-            row = conn.execute(sql, compiled.params).fetchone()
-        evidence = dict(row) if row is not None else {}
+        try:
+            evidence = self.executor.execute(compiled)
+        except ExecutionError as error:
+            return {
+                "status": "ERROR",
+                "reason": str(error),
+                "semantic_plan": plan.to_dict(),
+                "sql": sql,
+                "params": list(compiled.params),
+                "policy_allowed": True,
+                "policy_reason": reason,
+                "executor": self.executor.name,
+                "trace": trace,
+            }
         if compiled.result_metric != metric and metric in evidence:
             evidence = {compiled.result_metric: evidence[metric]}
         verification = _verify_metric_evidence(compiled.result_metric, evidence)
@@ -71,6 +85,7 @@ class DataAgent:
             "sql": sql,
             "params": list(compiled.params),
             "evidence": evidence,
+            "executor": self.executor.name,
             "policy_allowed": True,
             "policy_reason": reason,
             "verification": verification,
