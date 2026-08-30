@@ -28,7 +28,11 @@ class AgentTest(unittest.TestCase):
         )
         self.assertEqual(
             result["verification"],
-            {"method": "metric_key_present_and_non_null", "passed": True},
+            {
+                "method": "strict_result_contract",
+                "passed": True,
+                "reason": "ok",
+            },
         )
         self.assertTrue(result["verified"])
 

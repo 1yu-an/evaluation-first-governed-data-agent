@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .semantic import METRICS, PLAN_READY, SemanticPlan
+from .verification import ResultContract
 
 
 ALLOWED_FILTER_FIELDS = frozenset({"region"})
@@ -18,6 +19,17 @@ class CompiledQuery:
     sql: str
     result_metric: str
     params: tuple[Any, ...] = ()
+    result_contract: ResultContract | None = None
+
+    def __post_init__(self) -> None:
+        contract = self.result_contract
+        if contract is None:
+            contract = ResultContract.scalar_numeric(self.result_metric)
+            object.__setattr__(self, "result_contract", contract)
+        if contract.expected_key != self.result_metric:
+            raise ValueError(
+                "result contract key must match compiled result metric"
+            )
 
 
 BASE_SQL = {

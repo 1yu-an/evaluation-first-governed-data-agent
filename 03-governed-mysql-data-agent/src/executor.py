@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .compiler import CompiledQuery
+from .verification import EXACTLY_ONE
 
 
 class ExecutionError(RuntimeError):
@@ -20,6 +21,24 @@ class QueryExecutor(Protocol):
     def execute(self, query: CompiledQuery) -> dict[str, Any]: ...
 
 
+def _fetch_scalar_row(cursor: Any, query: CompiledQuery) -> Any:
+    if query.result_contract.cardinality != EXACTLY_ONE:
+        raise ExecutionError(
+            "unsupported result cardinality / 不支持的结果基数"
+        )
+    row = cursor.fetchone()
+    if row is None:
+        raise ExecutionError(
+            "expected exactly one result row, got zero / 标量查询未返回结果行"
+        )
+    if cursor.fetchone() is not None:
+        raise ExecutionError(
+            "expected exactly one result row, got more than one / "
+            "标量查询返回了多行"
+        )
+    return row
+
+
 class SQLiteExecutor:
     name = "sqlite"
 
@@ -30,7 +49,8 @@ class SQLiteExecutor:
         try:
             with closing(sqlite3.connect(self.db_path)) as connection:
                 connection.row_factory = sqlite3.Row
-                row = connection.execute(query.sql, query.params).fetchone()
+                cursor = connection.execute(query.sql, query.params)
+                row = _fetch_scalar_row(cursor, query)
         except sqlite3.Error as error:
             raise ExecutionError(
                 f"SQLite execution failed / SQLite 执行失败: {error}"
@@ -138,9 +158,7 @@ class MySQLExecutor:
             # unchanged for both SQLite and MySQL.
             cursor = connection.cursor(prepared=True)
             cursor.execute(query.sql, query.params)
-            row = cursor.fetchone()
-            if row is None:
-                return {}
+            row = _fetch_scalar_row(cursor, query)
             return {
                 name: _evidence_value(value)
                 for name, value in zip(cursor.column_names, row)

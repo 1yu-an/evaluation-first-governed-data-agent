@@ -2,14 +2,7 @@ from .compiler import CompileError, compile_plan
 from .executor import ExecutionError, QueryExecutor, SQLiteExecutor
 from .semantic import METRICS, PLAN_READY, build_semantic_plan
 from .policy import validate_sql
-
-
-def _verify_metric_evidence(metric: str, evidence: dict) -> dict:
-    passed = metric in evidence and evidence[metric] is not None
-    return {
-        "method": "metric_key_present_and_non_null",
-        "passed": passed,
-    }
+from .verification import verify_evidence
 
 
 class DataAgent:
@@ -73,10 +66,32 @@ class DataAgent:
                 "executor": self.executor.name,
                 "trace": trace,
             }
-        if compiled.result_metric != metric and metric in evidence:
+        if (
+            compiled.result_metric != metric
+            and isinstance(evidence, dict)
+            and set(evidence) == {metric}
+        ):
             evidence = {compiled.result_metric: evidence[metric]}
-        verification = _verify_metric_evidence(compiled.result_metric, evidence)
+        verification = verify_evidence(compiled.result_contract, evidence)
         trace.append("verify_evidence")
+        if not verification["passed"]:
+            return {
+                "status": "ERROR",
+                "reason": (
+                    "result verification failed / 结果验证失败: "
+                    f"{verification['reason']}"
+                ),
+                "metric": compiled.result_metric,
+                "semantic_plan": plan.to_dict(),
+                "sql": sql,
+                "params": list(compiled.params),
+                "executor": self.executor.name,
+                "policy_allowed": True,
+                "policy_reason": reason,
+                "verification": verification,
+                "verified": False,
+                "trace": trace,
+            }
         return {
             "status": "OK",
             "metric": compiled.result_metric,

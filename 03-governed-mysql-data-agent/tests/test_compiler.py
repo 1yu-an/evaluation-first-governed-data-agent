@@ -19,11 +19,29 @@ def test_revenue_without_filters_preserves_the_canonical_query():
 
     assert compiled.params == ()
     assert compiled.result_metric == "revenue"
+    assert compiled.result_contract.expected_key == "revenue"
+    assert compiled.result_contract.expected_type == "numeric"
+    assert compiled.result_contract.nullable is False
+    assert compiled.result_contract.cardinality == "exactly_one"
     assert compiled.sql == (
         "SELECT ROUND(COALESCE((SELECT SUM(amount) FROM payments "
         "WHERE status='completed'),0) - COALESCE((SELECT SUM(amount) "
         "FROM refunds WHERE status='completed'),0),2) AS revenue"
     )
+
+
+@pytest.mark.parametrize(
+    ("metric", "aggregation"),
+    [
+        ("completed_orders", "COUNT(*) AS completed_orders"),
+        ("avg_order_value", "AVG(total)"),
+    ],
+)
+def test_metric_uses_its_declared_aggregation(metric, aggregation):
+    compiled = compile_plan(_ready_plan(metric))
+
+    assert aggregation in compiled.sql
+    assert compiled.result_metric == metric
 
 
 @pytest.mark.parametrize("region", ["north", "south", "east"])
@@ -69,3 +87,4 @@ def test_all_existing_metrics_use_the_same_region_filter_contract():
         assert "region=?" in compiled.sql
         assert compiled.params
         assert set(compiled.params) == {"west"}
+        assert compiled.result_metric == f"west_{metric}"

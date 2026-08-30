@@ -19,12 +19,13 @@ class FakeCursor:
     def __init__(self):
         self.executed = None
         self.closed = False
+        self.rows = [(Decimal("180.00"),)]
 
     def execute(self, sql, params):
         self.executed = (sql, params)
 
     def fetchone(self):
-        return (Decimal("180.00"),)
+        return self.rows.pop(0) if self.rows else None
 
     def close(self):
         self.closed = True
@@ -73,6 +74,17 @@ def test_sqlite_executor_runs_compiled_query_with_bound_params(tmp_path):
     assert executor.execute(query) == {"value": 7}
 
 
+def test_sqlite_executor_rejects_zero_rows_for_scalar_contract(tmp_path):
+    executor = SQLiteExecutor(tmp_path / "demo.db")
+    query = CompiledQuery(
+        sql="SELECT 1 AS value WHERE 0",
+        result_metric="value",
+    )
+
+    with pytest.raises(ExecutionError, match="got zero"):
+        executor.execute(query)
+
+
 def test_mysql_executor_uses_native_prepared_query_and_bound_params():
     connector = FakeConnector()
     executor = MySQLExecutor(_mysql_config(), connector_module=connector)
@@ -97,6 +109,22 @@ def test_mysql_executor_uses_native_prepared_query_and_bound_params():
         "password": "test-only",
     }
     assert evidence == {"revenue": 180.0}
+    assert connector.connection.cursor_instance.closed is True
+    assert connector.connection.closed is True
+
+
+def test_mysql_executor_rejects_multiple_rows_for_scalar_contract():
+    connector = FakeConnector()
+    connector.connection.cursor_instance.rows.append((Decimal("20.00"),))
+    executor = MySQLExecutor(_mysql_config(), connector_module=connector)
+    query = CompiledQuery(
+        sql="SELECT amount AS revenue FROM payments",
+        result_metric="revenue",
+    )
+
+    with pytest.raises(ExecutionError, match="more than one"):
+        executor.execute(query)
+
     assert connector.connection.cursor_instance.closed is True
     assert connector.connection.closed is True
 

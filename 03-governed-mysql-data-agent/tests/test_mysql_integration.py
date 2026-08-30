@@ -12,8 +12,14 @@ if os.environ.get("RUN_MYSQL_INTEGRATION") != "1":
 mysql_connector = pytest.importorskip("mysql.connector")
 
 from src.agent import DataAgent
+from src.compiler import CompiledQuery
 from src.demo import initialize_demo
-from src.executor import MySQLConfig, MySQLExecutor, SQLiteExecutor
+from src.executor import (
+    ExecutionError,
+    MySQLConfig,
+    MySQLExecutor,
+    SQLiteExecutor,
+)
 
 
 @pytest.fixture(scope="module")
@@ -34,6 +40,30 @@ def _direct_connection(config):
         user=config.user,
         password=config.password,
     )
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected", "error"),
+    [
+        ("SELECT 7 AS value", {"value": 7}, None),
+        ("SELECT 7 AS value WHERE FALSE", None, "got zero"),
+        (
+            "SELECT 7 AS value UNION ALL SELECT 8 AS value",
+            None,
+            "more than one",
+        ),
+    ],
+)
+def test_mysql_executor_enforces_scalar_cardinality(
+    mysql_executor, sql, expected, error
+):
+    query = CompiledQuery(sql=sql, result_metric="value")
+
+    if error is None:
+        assert mysql_executor.execute(query) == expected
+    else:
+        with pytest.raises(ExecutionError, match=error):
+            mysql_executor.execute(query)
 
 
 def test_read_only_user_can_select_and_has_only_usage_plus_select(mysql_config):
