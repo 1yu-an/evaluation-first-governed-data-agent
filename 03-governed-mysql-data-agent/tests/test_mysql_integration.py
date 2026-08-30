@@ -128,6 +128,7 @@ def test_sqlite_and_mysql_return_identical_business_evidence(
         "completed_orders",
         "pending order count",
         "avg_order_value",
+        "highest completed order total",
         "gross completed payment amount",
         "total completed refunds",
         "revenue for the north region",

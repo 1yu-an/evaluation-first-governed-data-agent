@@ -128,6 +128,10 @@ def test_deliberately_rejected_synonyms_do_not_execute_sql(question, tmp_path):
         ("pending order count", "pending_orders"),
         ("number of pending orders", "pending_orders"),
         ("how many orders are pending", "pending_orders"),
+        ("highest completed order total", "max_completed_order_total"),
+        ("maximum completed order amount", "max_completed_order_total"),
+        ("largest completed order value", "max_completed_order_total"),
+        ("max completed order total", "max_completed_order_total"),
         ("aov", "avg_order_value"),
     ],
 )
@@ -269,6 +273,11 @@ def test_canonical_forms_and_existing_aliases_do_not_regress(question, metric):
             "pending_orders",
             {"pending_orders": 1},
         ),
+        (
+            "largest finished order amount",
+            "max_completed_order_total",
+            {"max_completed_order_total": 120.0},
+        ),
     ],
 )
 def test_eval_set_outside_paraphrases_use_reusable_families(
@@ -366,6 +375,54 @@ def test_pending_orders_completes_the_full_governed_chain(tmp_path):
     ],
 )
 def test_pending_order_negative_expressions_fail_before_sql(question, tmp_path):
+    db_path = tmp_path / "must-not-be-opened.db"
+
+    result = DataAgent(db_path).answer(question)
+
+    assert result["status"] == "NEED_CLARIFICATION"
+    assert result["semantic_plan"]["metric"] is None
+    assert result["trace"] == ["resolve_metric"]
+    assert "sql" not in result
+    assert "verified" not in result
+    assert not db_path.exists()
+
+
+def test_max_completed_order_total_completes_the_full_governed_chain(tmp_path):
+    db_path = initialize_demo(tmp_path / "max-completed-order-total.db")
+
+    result = DataAgent(db_path).answer("highest completed order total")
+
+    assert result["status"] == "OK"
+    assert result["semantic_plan"]["metric"] == "max_completed_order_total"
+    assert result["metric"] == "max_completed_order_total"
+    assert result["evidence"] == {"max_completed_order_total": 120.0}
+    assert (
+        result["definition"]
+        == METRIC_CATALOG["max_completed_order_total"].business_meaning
+    )
+    assert result["verified"] is True
+    assert result["trace"] == [
+        "resolve_metric",
+        "compile_query",
+        "validate_sql",
+        "execute_sql",
+        "verify_evidence",
+    ]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "highest pending order total",
+        "highest order count",
+        "minimum completed order total",
+        "average completed order total",
+        "highest completed payment",
+    ],
+)
+def test_max_completed_order_negative_expressions_fail_before_sql(
+    question, tmp_path
+):
     db_path = tmp_path / "must-not-be-opened.db"
 
     result = DataAgent(db_path).answer(question)

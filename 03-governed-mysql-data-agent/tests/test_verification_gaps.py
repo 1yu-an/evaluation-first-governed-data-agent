@@ -131,12 +131,33 @@ def test_multiple_rows_fail_closed_instead_of_being_truncated(tmp_path):
     assert "verified" not in result
 
 
+def test_max_empty_completed_order_set_returns_null_and_fails_closed(tmp_path):
+    db_path = initialize_demo(tmp_path / "empty-completed-orders.db")
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("UPDATE orders SET status='pending'")
+
+    result = DataAgent(db_path).answer("highest completed order total")
+
+    assert result["status"] == "ERROR"
+    assert result["metric"] == "max_completed_order_total"
+    assert "MAX(total)" in result["sql"]
+    assert "COALESCE" not in result["sql"]
+    assert result["verification"]["passed"] is False
+    assert result["verification"]["reason"] == "result value must be non-null"
+    assert result["verified"] is False
+    assert "evidence" not in result
+
+
 @pytest.mark.parametrize(
     ("question", "expected_evidence"),
     [
         ("revenue", {"revenue": 180.0}),
         ("completed_orders", {"completed_orders": 2}),
         ("avg_order_value", {"avg_order_value": 100.0}),
+        (
+            "highest completed order total",
+            {"max_completed_order_total": 120.0},
+        ),
         ("revenue for the north region", {"north_revenue": 0.0}),
     ],
 )

@@ -103,6 +103,33 @@ def test_pending_orders_does_not_accept_region_as_a_generic_filter():
         compile_plan(_ready_plan("pending_orders", {"region": "north"}))
 
 
+def test_max_completed_order_total_uses_only_its_fixed_strategy_semantics():
+    compiled = compile_plan(_ready_plan("max_completed_order_total"))
+
+    assert compiled.sql == (
+        "SELECT MAX(total) AS max_completed_order_total FROM orders "
+        "WHERE status='completed'"
+    )
+    assert "COUNT(" not in compiled.sql
+    assert "AVG(" not in compiled.sql
+    assert "SUM(" not in compiled.sql
+    assert "COALESCE(" not in compiled.sql
+    assert compiled.result_metric == "max_completed_order_total"
+    assert compiled.params == ()
+    assert (
+        compiled.result_contract
+        is METRIC_CATALOG["max_completed_order_total"].result_contract
+    )
+    assert validate_sql(compiled.sql) == (True, "ok")
+
+
+def test_max_completed_order_total_rejects_unsupported_region_filter():
+    with pytest.raises(CompileError, match="unsupported filter field"):
+        compile_plan(
+            _ready_plan("max_completed_order_total", {"region": "north"})
+        )
+
+
 def test_all_existing_metrics_use_the_same_region_filter_contract():
     for metric in ("revenue", "completed_orders", "avg_order_value"):
         compiled = compile_plan(_ready_plan(metric, {"region": "west"}))

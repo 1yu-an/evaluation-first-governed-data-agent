@@ -196,12 +196,12 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     summary = summarize_cases([execution.eval_case for execution in executions])
 
     assert summary.total_cases == 56
-    assert summary.outcome_success_rate == pytest.approx(52 / 56)
-    assert summary.evaluator_conformance_rate == pytest.approx(52 / 56)
-    assert summary.dimension_averages.state_score == pytest.approx(52 / 56)
-    assert summary.dimension_averages.policy_score == pytest.approx(52 / 56)
-    assert summary.dimension_averages.verification_score == pytest.approx(20 / 24)
-    assert summary.dimension_averages.overall_score == pytest.approx(52 / 56)
+    assert summary.outcome_success_rate == pytest.approx(53 / 56)
+    assert summary.evaluator_conformance_rate == pytest.approx(53 / 56)
+    assert summary.dimension_averages.state_score == pytest.approx(53 / 56)
+    assert summary.dimension_averages.policy_score == pytest.approx(53 / 56)
+    assert summary.dimension_averages.verification_score == pytest.approx(21 / 24)
+    assert summary.dimension_averages.overall_score == pytest.approx(53 / 56)
 
     assert {
         category: row.count
@@ -217,7 +217,6 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
         "verification_or_result_edge": 6,
     }
     assert set(summary.failure_analysis.conformance_mismatches) == {
-        "03-result-edge-highest-order-total",
         "03-synonym-fulfilled-purchases",
         "03-synonym-money-made",
         "03-synonym-turnover",
@@ -308,5 +307,6 @@ def test_integration_reports_are_deterministic_and_identify_dynamic_source(tmp_p
     assert "**First failing responsibility layer:** State" in markdown
     assert '"id": "03-policy-safe-cte"' in first_json
     assert "### 03-policy-safe-cte" not in markdown
-    assert "03-result-edge-highest-order-total" in markdown
+    assert "03-synonym-money-made" in markdown
+    assert "03-result-edge-highest-order-total" not in markdown
     assert "03-result-edge-pending-orders" not in markdown

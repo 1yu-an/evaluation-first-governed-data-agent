@@ -158,6 +158,22 @@ def _compile_avg_completed_order_value(
     )
 
 
+def _compile_max_completed_order_total(
+    definition: MetricDefinition, region: str | None
+) -> CompiledQuery:
+    if region is not None:
+        raise CompileError(
+            "maximum completed order total does not support region filters"
+        )
+    return _compiled_query(
+        definition,
+        sql=(
+            "SELECT MAX(total) AS max_completed_order_total FROM orders "
+            "WHERE status='completed'"
+        ),
+    )
+
+
 def _compile_completed_payment_sum(
     definition: MetricDefinition, region: str | None
 ) -> CompiledQuery:
@@ -193,6 +209,9 @@ _STRATEGY_COMPILERS: dict[CompilerStrategy, CompilerFunction] = {
     CompilerStrategy.PENDING_ORDER_COUNT: _compile_pending_order_count,
     CompilerStrategy.AVG_COMPLETED_ORDER_VALUE: (
         _compile_avg_completed_order_value
+    ),
+    CompilerStrategy.MAX_COMPLETED_ORDER_TOTAL: (
+        _compile_max_completed_order_total
     ),
     CompilerStrategy.COMPLETED_PAYMENT_SUM: _compile_completed_payment_sum,
     CompilerStrategy.COMPLETED_REFUND_SUM: _compile_completed_refund_sum,

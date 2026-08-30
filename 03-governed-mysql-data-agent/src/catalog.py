@@ -16,6 +16,7 @@ class CompilerStrategy(str, Enum):
     COMPLETED_ORDER_COUNT = "COMPLETED_ORDER_COUNT"
     PENDING_ORDER_COUNT = "PENDING_ORDER_COUNT"
     AVG_COMPLETED_ORDER_VALUE = "AVG_COMPLETED_ORDER_VALUE"
+    MAX_COMPLETED_ORDER_TOTAL = "MAX_COMPLETED_ORDER_TOTAL"
     COMPLETED_PAYMENT_SUM = "COMPLETED_PAYMENT_SUM"
     COMPLETED_REFUND_SUM = "COMPLETED_REFUND_SUM"
 
@@ -110,6 +111,30 @@ METRIC_DEFINITIONS = (
         ),
         result_contract=ResultContract.scalar_numeric("pending_orders"),
         compiler_strategy=CompilerStrategy.PENDING_ORDER_COUNT,
+    ),
+    MetricDefinition(
+        metric_id="max_completed_order_total",
+        business_meaning=(
+            "Maximum total amount among completed orders / "
+            "已完成订单中的最高订单总额"
+        ),
+        resolver=ResolverMetadata(
+            canonical_forms=("max_completed_order_total",),
+            composition_patterns=(
+                CompositionPattern(
+                    required_feature_groups=(
+                        frozenset({"highest", "maximum", "largest", "max"}),
+                        frozenset({"completed", "finished"}),
+                        frozenset({"order"}),
+                        frozenset({"total", "amount", "value"}),
+                    )
+                ),
+            ),
+        ),
+        result_contract=ResultContract.scalar_numeric(
+            "max_completed_order_total"
+        ),
+        compiler_strategy=CompilerStrategy.MAX_COMPLETED_ORDER_TOTAL,
     ),
     MetricDefinition(
         metric_id="avg_order_value",
