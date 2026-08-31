@@ -32,9 +32,19 @@ v2 当前提供：
 - JSON 中禁止 raw SQL，只允许 `count/sum/avg/max` 与受控的
   `difference_of_sums` 两种有限操作结构。
 
+V2.2 产品化加固还提供：
+
+- 正常的根 `--help`、可操作的 `reason_code`/hint 和脱敏数据库诊断；
+- `DATA_AGENT_PROFILE` 与 `DATA_AGENT_DB_PATH` 个人默认值；
+- `init-profile` 合法最小模板，默认拒绝覆盖已有文件；
+- expenses Profile 的显式 category/region/status scope fail-closed 覆盖；
+- initialize → validate → explain → ask 的单一 smoke flow。
+
 需求和设计决策见
 [`PERSONAL_USE_V2_PRD.md`](../PERSONAL_USE_V2_PRD.md) 与
-[`PERSONAL_USE_V2_DESIGN.md`](../PERSONAL_USE_V2_DESIGN.md)。
+[`PERSONAL_USE_V2_DESIGN.md`](../PERSONAL_USE_V2_DESIGN.md)。V2.2 的真实摩擦、
+候选排序和选择边界见
+[`V2_2_HARDENING_PRD.md`](../V2_2_HARDENING_PRD.md)。
 
 ## Why this is not ordinary Text-to-SQL / 为什么不是普通 Text-to-SQL
 
@@ -109,23 +119,55 @@ Eval / Benchmark / Regression Gate
 4. 所有编译 SQL 都必须通过 AST Policy。
 5. MySQL Agent runtime 不读取管理员凭据，只使用 SELECT-only 账号。
 6. ResultContract 失败时 fail closed，不返回 verified business evidence。
+7. Profile 必须声明希望识别的 scope vocabulary；声明但不允许的维度会在 Compiler
+   前安全失败，不会静默丢弃。
 
 ## Five-minute personal expenses flow / 5 分钟个人支出流程
 
-以下命令在 `03-governed-mysql-data-agent` 目录执行。它们使用 SQLite，不需要 MySQL
-或管理员凭据。
+只需要 Python 3.12+。以下是个人运行时安装，不需要 Java、Maven、MySQL、管理员凭据，
+也不需要根目录的完整 dev dependencies。
+
+### Windows PowerShell
 
 ```powershell
+Set-Location 03-governed-mysql-data-agent
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+
 python scripts\init_expenses.py expenses.db
-python -m src.cli validate-profile --profile profiles\expenses.json
-python -m src.cli explain --profile profiles\expenses.json `
-  "average expense for transport"
-python -m src.cli ask --profile profiles\expenses.json `
-  --db-path expenses.db "total expenses for groceries"
+$env:DATA_AGENT_PROFILE = "profiles\expenses.json"
+$env:DATA_AGENT_DB_PATH = "expenses.db"
+
+python -m src.cli validate-profile
+python -m src.cli explain "average expense for transport"
+python -m src.cli ask "total expenses for groceries"
 ```
 
-POSIX shell 将反斜杠换成 `/`，并移除 PowerShell 的续行反引号。最后一条命令输出
-简洁合同，不显示 SQL：
+如果机器没有 Windows Python Launcher，将 `py -3.12` 替换为 Python 3.12+ 的
+`python`。
+
+### macOS / Linux
+
+```bash
+cd 03-governed-mysql-data-agent
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+
+python scripts/init_expenses.py expenses.db
+export DATA_AGENT_PROFILE=profiles/expenses.json
+export DATA_AGENT_DB_PATH=expenses.db
+
+python -m src.cli validate-profile
+python -m src.cli explain "average expense for transport"
+python -m src.cli ask "total expenses for groceries"
+```
+
+配置优先级固定为：显式 `--profile` / `--db-path` > 对应环境变量 > 默认
+`profiles/demo.json` / `demo.db`。运行 `python -m src.cli --help` 可查看所有命令。
+
+最后一条命令输出简洁合同，不显示 SQL：
 
 ```json
 {
@@ -142,10 +184,32 @@ POSIX shell 将反斜杠换成 `/`，并移除 PowerShell 的续行反引号。�
 `explain` 会显示参数化 SQL 和 params，但返回 `executed=false`，不打开数据库。旧命令
 `python -m src.cli "revenue"` 仍选择默认 demo Profile 并保留 v1 完整输出。
 
+### Start a new Profile / 创建新 Profile
+
+不要从空 JSON 或 111 行 expenses 配置开始。先生成一个通过生产 validator 的最小模板：
+
+```powershell
+python -m src.cli init-profile profiles\my_profile.json
+python -m src.cli validate-profile --profile profiles\my_profile.json
+```
+
+命令不会连接数据库、检查数据、猜 metric、生成 raw SQL 或覆盖已有文件。替换模板中的
+`replace_table`、metric meaning 和 phrases；需要 filters 时参考
+[`profiles/expenses.json`](profiles/expenses.json)。Profile 应声明所有需要识别的维度标签，
+即使某个维度不被当前 metric 允许；这样显式但不支持的 scope 会安全失败，而不是变成
+无过滤查询。
+
+### Actionable failures / 可操作错误
+
+新式 CLI 失败始终是 JSON。安全语义拒绝使用 `status=safe_failure`；配置/数据库错误使用
+`status=error`。`reason_code` 供脚本稳定判断，`reason` 保留具体细节，`hint` 在可以明确
+修复时给出下一步。例如认证失败使用 `database_authentication_failed`，schema 不匹配使用
+`schema_mismatch`。输出不会包含密码、DSN、敏感环境变量或 traceback。
+
 ### Connect a personal MySQL schema / 接入个人 MySQL
 
-1. 复制 `profiles/expenses.json`，修改 ID、指标语言、有限 filters 和受支持操作；不要放入
-   SQL 或凭据。
+1. 用 `init-profile` 创建最小模板，或复制 `profiles/expenses.json` 作为 filter 示例；
+   不要放入 SQL 或凭据。
 2. 运行 `validate-profile` 做离线结构/引用/标识符检查。
 3. 通过 shell 环境变量配置独立的 SELECT-only 运行账号。
 4. 设置 `DATA_AGENT_EXECUTOR=mysql`，先运行
@@ -221,7 +285,7 @@ cd 03-governed-mysql-data-agent
 python -m pytest -q
 ```
 
-当前普通测试结果：`203 passed, 1 skipped, 13 subtests passed`，包含原有 v1 回归
+当前普通测试结果：`223 passed, 1 skipped, 13 subtests passed`，包含原有 v1 回归
 以及新增 Profile/schema/expenses/CLI 覆盖。skip 是显式 opt-in
 的真实 MySQL 模块。
 

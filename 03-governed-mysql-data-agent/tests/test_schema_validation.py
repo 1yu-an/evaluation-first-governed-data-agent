@@ -97,7 +97,52 @@ def test_mysql_connection_errors_are_wrapped_without_losing_reason():
         user = "reader"
         password = "test-only"
 
-    with pytest.raises(SchemaInspectionError, match="connection refused"):
+    with pytest.raises(SchemaInspectionError, match="connection refused") as captured:
         validate_mysql_config_schema(
             load_default_profile(), Config(), FailingConnector()
         )
+
+    assert captured.value.reason_code == "database_schema_inspection_failed"
+
+
+@pytest.mark.parametrize(
+    ("errno", "reason_code"),
+    [
+        (2005, "database_host_not_found"),
+        (2003, "database_connection_unavailable"),
+        (1045, "database_authentication_failed"),
+        (1049, "database_not_found"),
+        (1044, "database_permission_denied"),
+        (1142, "database_permission_denied"),
+    ],
+)
+def test_mysql_errno_has_stable_actionable_category(errno, reason_code):
+    redaction_target = "-".join(("v22", "test", "secret"))
+
+    class ConnectorError(Exception):
+        def __init__(self):
+            self.errno = errno
+            super().__init__(f"driver detail with {redaction_target} errno={errno}")
+
+    class FailingConnector:
+        @staticmethod
+        def connect(**kwargs):
+            raise ConnectorError()
+
+    class Config:
+        host = "db.test"
+        port = 3306
+        database = "data_agent"
+        user = "reader"
+        password = redaction_target
+
+    with pytest.raises(SchemaInspectionError) as captured:
+        validate_mysql_config_schema(
+            load_default_profile(), Config(), FailingConnector()
+        )
+
+    error = captured.value
+    assert error.reason_code == reason_code
+    assert error.hint
+    assert redaction_target not in str(error)
+    assert "***" in str(error)

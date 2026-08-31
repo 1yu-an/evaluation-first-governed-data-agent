@@ -17,6 +17,11 @@ MYSQL_SCHEMA_QUERY = (
 class SchemaValidationError(RuntimeError):
     """The selected profile references missing database objects."""
 
+    reason_code = "schema_mismatch"
+    hint = (
+        "Add the missing table/column or update the Profile operation metadata."
+    )
+
     def __init__(
         self,
         missing_tables: Iterable[str] = (),
@@ -31,6 +36,57 @@ class SchemaValidationError(RuntimeError):
 
 class SchemaInspectionError(RuntimeError):
     """MySQL metadata could not be read safely."""
+
+    def __init__(self, reason_code: str, message: str, hint: str):
+        self.reason_code = reason_code
+        self.hint = hint
+        super().__init__(message)
+
+
+MYSQL_ERROR_DIAGNOSTICS = {
+    2005: (
+        "database_host_not_found",
+        "Check MYSQL_HOST and DNS/network availability.",
+    ),
+    2003: (
+        "database_connection_unavailable",
+        "Check MYSQL_HOST, MYSQL_PORT, and that MySQL is running and reachable.",
+    ),
+    1045: (
+        "database_authentication_failed",
+        "Check MYSQL_AGENT_USER and MYSQL_AGENT_PASSWORD.",
+    ),
+    1049: (
+        "database_not_found",
+        "Check MYSQL_DATABASE and create it during setup if needed.",
+    ),
+    1044: (
+        "database_permission_denied",
+        "Grant the runtime account SELECT on the configured database.",
+    ),
+    1142: (
+        "database_permission_denied",
+        "Grant the runtime account SELECT on the configured database.",
+    ),
+}
+
+
+def _inspection_error(error: Exception, password: str) -> SchemaInspectionError:
+    reason_code, hint = MYSQL_ERROR_DIAGNOSTICS.get(
+        getattr(error, "errno", None),
+        (
+            "database_schema_inspection_failed",
+            "Check the MySQL connection settings and runtime account grants.",
+        ),
+    )
+    detail = str(error)
+    if password:
+        detail = detail.replace(password, "***")
+    return SchemaInspectionError(
+        reason_code,
+        f"MySQL schema inspection failed: {detail}",
+        hint,
+    )
 
 
 def validate_schema_snapshot(
@@ -96,9 +152,7 @@ def validate_mysql_config_schema(
     except SchemaValidationError:
         raise
     except Exception as error:
-        raise SchemaInspectionError(
-            f"MySQL schema inspection failed: {error}"
-        ) from error
+        raise _inspection_error(error, config.password) from error
     finally:
         if connection is not None:
             connection.close()

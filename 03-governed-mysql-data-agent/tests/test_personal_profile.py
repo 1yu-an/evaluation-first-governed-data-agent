@@ -73,6 +73,30 @@ def test_multi_category_and_unknown_questions_fail_before_execution(tmp_path):
     assert not unopened.exists()
 
 
+@pytest.mark.parametrize(
+    ("question", "filter_name", "filter_value"),
+    [
+        ("total expenses for category business", "category", "business"),
+        ("total expenses for the north region", "region", "north"),
+        ("total expenses with status pending", "status", "pending"),
+    ],
+)
+def test_explicit_unsupported_scope_fails_before_execution(
+    question, filter_name, filter_value, tmp_path
+):
+    unopened = tmp_path / "must-not-be-opened.db"
+    result = DataAgent(unopened, profile=EXPENSES_PROFILE).answer(question)
+
+    assert result["status"] == PLAN_NEEDS_CLARIFICATION
+    assert result["semantic_plan"]["filters"] == {
+        filter_name: filter_value
+    }
+    assert result["trace"] == ["resolve_metric", "compile_query"]
+    assert "sql" not in result
+    assert "evidence" not in result
+    assert not unopened.exists()
+
+
 def test_injection_shaped_filter_value_is_rejected_by_compiler():
     plan = SemanticPlan(
         metric="total_expenses",

@@ -37,7 +37,17 @@
         "housing": "housing",
         "rent": "housing"
       },
-      "adjacent_labels": []
+      "adjacent_labels": ["category"]
+    },
+    {
+      "id": "region",
+      "phrases": {},
+      "adjacent_labels": ["region"]
+    },
+    {
+      "id": "status",
+      "phrases": {},
+      "adjacent_labels": ["status"]
     }
   ],
   "metrics": [

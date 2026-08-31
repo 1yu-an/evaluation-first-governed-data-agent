@@ -24,9 +24,23 @@ DEFAULT_PROFILE_PATH = (
 class ProfileValidationError(ValueError):
     """A profile is malformed, unsafe, or internally inconsistent."""
 
+    reason_code = "profile_validation_failed"
+    hint = (
+        "Fix the reported JSON path(s), then run validate-profile again."
+    )
+
     def __init__(self, issues: str | list[str]):
         self.issues = [issues] if isinstance(issues, str) else list(issues)
         super().__init__("profile validation failed: " + "; ".join(self.issues))
+
+
+class ProfileScaffoldError(ValueError):
+    """A Profile scaffold could not be created safely."""
+
+    def __init__(self, reason_code: str, message: str, hint: str):
+        self.reason_code = reason_code
+        self.hint = hint
+        super().__init__(message)
 
 
 @dataclass(frozen=True)
@@ -379,7 +393,10 @@ def _aggregate_operation(value: dict[str, Any], path: str) -> AggregateOperation
     )
     aggregate = _string(data["aggregate"], f"{path}.aggregate").lower()
     if aggregate not in {"count", "sum", "avg", "max"}:
-        raise ProfileValidationError(f"{path}.aggregate: unsupported aggregate {aggregate!r}")
+        raise ProfileValidationError(
+            f"{path}.aggregate: unsupported aggregate {aggregate!r}; "
+            "supported values: avg, count, max, sum"
+        )
     column_value = data["column"]
     if column_value is None:
         column = None
@@ -504,7 +521,10 @@ def _operation(value: Any, path: str) -> MetricOperation:
         return _aggregate_operation(value, path)
     if operation_type == "difference_of_sums":
         return _difference_operation(value, path)
-    raise ProfileValidationError(f"{path}.type: unsupported operation {operation_type!r}")
+    raise ProfileValidationError(
+        f"{path}.type: unsupported operation {operation_type!r}; "
+        "supported values: aggregate, difference_of_sums"
+    )
 
 
 def _metrics(
@@ -572,7 +592,9 @@ def _metrics(
         )
         if result_key_mode not in {"metric", "dimension_value_prefix"}:
             raise ProfileValidationError(
-                f"{item_path}.result_key.mode: unsupported mode {result_key_mode!r}"
+                f"{item_path}.result_key.mode: unsupported mode "
+                f"{result_key_mode!r}; supported values: "
+                "dimension_value_prefix, metric"
             )
         if result_key_mode == "dimension_value_prefix" and len(allowed_filters) != 1:
             raise ProfileValidationError(
@@ -666,6 +688,78 @@ def load_profile(path: str | Path) -> DomainProfile:
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ProfileValidationError(f"{profile_path}: cannot load JSON: {error}") from error
     return validate_profile_data(data, str(profile_path))
+
+
+def profile_scaffold_data(profile_id: str) -> dict[str, Any]:
+    """Return one legal, minimal Profile without inferring business semantics."""
+    if not isinstance(profile_id, str) or not IDENTIFIER.fullmatch(profile_id):
+        raise ProfileScaffoldError(
+            "invalid_profile_id",
+            f"invalid Profile id: {profile_id!r}",
+            "Use --profile-id with letters, digits, and underscores; do not start with a digit.",
+        )
+    data = {
+        "profile_version": PROFILE_VERSION,
+        "id": profile_id,
+        "description": "Replace with this personal domain's purpose.",
+        "language": {
+            "token_normalization": {},
+            "scope_ambiguity_markers": [],
+            "guard_rules": [],
+        },
+        "dimensions": [],
+        "metrics": [
+            {
+                "id": "row_count",
+                "meaning": "Count rows in replace_table; replace this meaning.",
+                "canonical_forms": ["row_count", "row count"],
+                "synonyms": [],
+                "cjk_aliases": [],
+                "composition_patterns": [],
+                "allowed_dimensions": [],
+                "result_key": {"mode": "metric"},
+                "operation": {
+                    "type": "aggregate",
+                    "aggregate": "count",
+                    "source": {"table": "replace_table", "alias": "t"},
+                    "column": None,
+                    "round_digits": None,
+                    "coalesce_zero": False,
+                    "fixed_predicates": [],
+                    "filter_bindings": {},
+                },
+            }
+        ],
+    }
+    validate_profile_data(data, "<generated scaffold>")
+    return data
+
+
+def write_profile_scaffold(
+    path: str | Path, profile_id: str | None = None
+) -> DomainProfile:
+    """Create a validated JSON scaffold exclusively; never overwrite a file."""
+    target = Path(path)
+    selected_id = profile_id if profile_id is not None else target.stem
+    data = profile_scaffold_data(selected_id)
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("x", encoding="utf-8", newline="\n") as output:
+            json.dump(data, output, ensure_ascii=False, indent=2)
+            output.write("\n")
+    except FileExistsError as error:
+        raise ProfileScaffoldError(
+            "profile_target_exists",
+            f"refusing to overwrite existing Profile: {target}",
+            "Choose a new path or move the existing file explicitly.",
+        ) from error
+    except OSError as error:
+        raise ProfileScaffoldError(
+            "profile_scaffold_write_failed",
+            f"could not write Profile scaffold {target}: {error}",
+            "Check the parent path and filesystem permissions.",
+        ) from error
+    return load_profile(target)
 
 
 @lru_cache(maxsize=1)

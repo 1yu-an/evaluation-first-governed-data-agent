@@ -118,3 +118,16 @@ def test_explicit_resolver_phrase_cannot_belong_to_two_metrics():
 
     with pytest.raises(ProfileValidationError, match="already owned"):
         validate_profile_data(data)
+
+
+def test_invalid_aggregate_lists_supported_repair_values():
+    data = _expenses_data()
+    data["metrics"][0]["operation"]["aggregate"] = "average"
+
+    with pytest.raises(ProfileValidationError) as captured:
+        validate_profile_data(data)
+
+    message = str(captured.value)
+    assert "supported values: avg, count, max, sum" in message
+    assert captured.value.reason_code == "profile_validation_failed"
+    assert captured.value.hint
