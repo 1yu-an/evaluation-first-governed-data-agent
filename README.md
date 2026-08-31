@@ -21,6 +21,8 @@
 5. [V3 Analytics PRD](V3_ANALYTICS_PRD.md) 与
    [Design](V3_ANALYTICS_DESIGN.md)：由 38 个真实问题驱动的时间过滤、分组、
    Top-N、多行验证与独立安全评测设计。
+6. [V3 Analytics Report](V3_ANALYTICS_REPORT.md)：实现、安全、SQLite/MySQL、
+   固定回归、独立评测、Git/CI 与 resolver 瓶颈结论。
 
 03 README 是该项目面向 reviewer 的权威入口；`CURRENT_STATE.md` 只记录简洁的
 仓库状态快照。

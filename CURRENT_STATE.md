@@ -1,5 +1,42 @@
 # Current Repository State
 
+## V3 Governed Analytical Queries
+
+Verified on: 2026-08-31 (Asia/Shanghai).
+
+Implementation branch: `codex/v3-governed-analytics`.
+
+V3 implementation commit: `e57ebeaba197f7396aeaf17c10d562fb2951bced`.
+
+Hosted implementation evidence:
+[CI Regression Gate run 33408286472](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33408286472).
+
+V3 adds typed time ranges, one-dimensional Profile-approved grouping,
+metric ordering, Top-N from 1 through 100, bounded grouped execution, strict
+multirow verification, multirow ask/explain output, and a separate dynamic
+38-case V3 Analytics Eval. Comparison is explicitly deferred to V3.1 and
+fails closed.
+
+Verified V3 results:
+
+- Project03: `307 passed, 1 skipped, 13 subtests passed`.
+- Project00: `62 passed`.
+- V3 Analytics Eval: `36 / 38`, `SAFE_FAILURE=2`, `FALSE_SUCCESS=0`,
+  `UNSAFE_ALLOW=0`, `OVER_BLOCK=0`.
+- Fixed 56-case SHA remains
+  `FFA2D213867C1AD80F386EE2D762FD91224C215E23F91FC4A6B0A2F66675A40E`.
+- Fixed result remains `53 / 56`, `SAFE_FAILURE=3`, `FALSE_SUCCESS=0`,
+  `UNSAFE_ALLOW=0`, `OVER_BLOCK=0`.
+- Local MySQL 8.0.46 parity: `11 passed`; runtime grants were only `USAGE`
+  plus `SELECT` on `data_agent`.
+- Complete local Acceptance Gate with real MySQL: `FINAL RESULT: PASS`.
+- Hosted disposable-MySQL acceptance job: `success`.
+
+The complete evidence and scope decisions are in
+[`V3_ANALYTICS_REPORT.md`](V3_ANALYTICS_REPORT.md).
+
+# Historical V2.2 Snapshot
+
 Verified on: 2026-08-31 (Asia/Shanghai)
 
 Stable v1 base: `5afe98c157d416a797b473c5bbea21c87cbdfdb0`.
