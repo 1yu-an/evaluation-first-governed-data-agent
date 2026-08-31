@@ -55,6 +55,30 @@
 
 项目默认尽量提供 mock/local mode（本地模拟模式），无需付费 LLM API 即可学习核心工程逻辑。真实模型接入点通过接口保留，你可以后续让 Codex 接 OpenAI/Anthropic/Gemini/本地模型。
 
+
+## Repository Acceptance Gate / Unified local and CI gate
+
+Run the complete required acceptance suite from the repository root:
+
+```bash
+python scripts/acceptance_gate.py
+```
+
+The gate runs repository validation, its own orchestration tests, Python tests
+for projects 00/02/03/04/05, Maven tests for projects 01/06, and the existing
+fixed 56-case Project 03 regression Benchmark. It returns exit code 0 and
+prints `FINAL RESULT: PASS` only when every required check passes. A failed
+test or Benchmark, a command startup error, or missing Java/Maven produces a
+non-zero exit code. Prerequisites are Python 3.12, Java 21, and Maven; install
+Python dependencies with `python -m pip install -r requirements-dev.txt`.
+
+Real MySQL 8.0 integration remains external and opt-in because it needs a
+prepared database and dedicated credentials. After following the Project 03
+README environment setup, include it explicitly:
+
+```bash
+python scripts/acceptance_gate.py --with-mysql
+```
 ## Shared commands / 通用命令
 
 ```bash

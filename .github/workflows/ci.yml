@@ -10,7 +10,7 @@ permissions:
 jobs:
   regression-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -23,22 +23,18 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
 
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
       - name: Install declared dependencies
         run: python -m pip install -r requirements-dev.txt
 
-      - name: Validate repository
-        run: python scripts/validate_all.py
+      - name: Verify Maven availability
+        run: mvn --version
 
-      - name: Run project 03 tests
-        working-directory: 03-governed-mysql-data-agent
-        run: python -m pytest -q
-
-      - name: Run project 00 tests
-        working-directory: 00-agent-eval-harness
-        run: python -m pytest -q
-
-      - name: Enforce fixed 56-case regression gate
-        working-directory: 00-agent-eval-harness
-        run: >-
-          python -m src.integration_benchmark
-          --gate config/03_regression_gate.json
+      - name: Run repository acceptance gate
+        run: python scripts/acceptance_gate.py
