@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "profile": "expenses",
+  "reference_date": "2026-08-31",
+  "fixture": "existing six-row expenses example",
+  "notes": [
+    "This corpus is independent from the frozen Project00 56-case Eval Set.",
+    "It captures user intent before V3 scope decisions and contains no precomputed actual output.",
+    "Comparison cases express user value; the PRD may still defer them if safe failure is the higher-ROI MVP behavior."
+  ],
+  "cases": [
+    {
+      "id": "v3-scalar-total",
+      "category": "scalar",
+      "question": "total expenses",
+      "desired_outcome": "success",
+      "expected": {"metric": "total_expenses", "value": 977.5}
+    },
+    {
+      "id": "v3-scalar-average",
+      "category": "scalar",
+      "question": "average expense",
+      "desired_outcome": "success",
+      "expected": {"metric": "average_expense", "value": 162.92}
+    },
+    {
+      "id": "v3-scalar-count",
+      "category": "scalar",
+      "question": "how many expenses",
+      "desired_outcome": "success",
+      "expected": {"metric": "expense_count", "value": 6}
+    },
+    {
+      "id": "v3-scalar-food",
+      "category": "scalar",
+      "question": "total expenses for groceries",
+      "desired_outcome": "success",
+      "expected": {"metric": "total_expenses", "value": 47.5}
+    },
+    {
+      "id": "v3-scalar-transport-average",
+      "category": "scalar",
+      "question": "average expense for transport",
+      "desired_outcome": "success",
+      "expected": {"metric": "average_expense", "value": 15.0}
+    },
+    {
+      "id": "v3-time-this-month-total",
+      "category": "time_filter",
+      "question": "total expenses this month",
+      "desired_outcome": "success",
+      "expected": {"metric": "total_expenses", "value": 977.5}
+    },
+    {
+      "id": "v3-time-last-month-total",
+      "category": "time_filter",
+      "question": "total expenses last month",
+      "desired_outcome": "success",
+      "expected": {"metric": "total_expenses", "value": 0.0}
+    },
+    {
+      "id": "v3-time-past-three-months-average",
+      "category": "time_filter",
+      "question": "average expense for the past 3 months",
+      "desired_outcome": "success",
+      "expected": {"metric": "average_expense", "value": 162.92}
+    },
+    {
+      "id": "v3-time-explicit-range-total",
+      "category": "time_filter",
+      "question": "total expenses between 2026-08-01 and 2026-08-05",
+      "desired_outcome": "success",
+      "expected": {"metric": "total_expenses", "value": 50.5}
+    },
+    {
+      "id": "v3-time-explicit-range-count",
+      "category": "time_filter",
+      "question": "expense count between 2026-08-03 and 2026-08-10",
+      "desired_outcome": "success",
+      "expected": {"metric": "expense_count", "value": 4}
+    },
+    {
+      "id": "v3-time-this-month-food",
+      "category": "time_filter",
+      "question": "total expenses for groceries this month",
+      "desired_outcome": "success",
+      "expected": {"metric": "total_expenses", "value": 47.5}
+    },
+    {
+      "id": "v3-time-malformed-range",
+      "category": "time_filter",
+      "question": "total expenses between 2026-08-20 and 2026-08-01",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "range start must not be after range end"}
+    },
+    {
+      "id": "v3-group-total-category",
+      "category": "group_by",
+      "question": "total expenses by category",
+      "desired_outcome": "success",
+      "expected": {
+        "dimension": "category",
+        "metric": "total_expenses",
+        "rows": [
+          {"category": "food", "total_expenses": 47.5},
+          {"category": "housing", "total_expenses": 900.0},
+          {"category": "transport", "total_expenses": 30.0}
+        ]
+      }
+    },
+    {
+      "id": "v3-group-average-category",
+      "category": "group_by",
+      "question": "average expense by category",
+      "desired_outcome": "success",
+      "expected": {
+        "dimension": "category",
+        "metric": "average_expense",
+        "rows": [
+          {"category": "food", "average_expense": 15.83},
+          {"category": "housing", "average_expense": 900.0},
+          {"category": "transport", "average_expense": 15.0}
+        ]
+      }
+    },
+    {
+      "id": "v3-group-count-category",
+      "category": "group_by",
+      "question": "expense count by category",
+      "desired_outcome": "success",
+      "expected": {
+        "dimension": "category",
+        "metric": "expense_count",
+        "rows": [
+          {"category": "food", "expense_count": 3},
+          {"category": "housing", "expense_count": 1},
+          {"category": "transport", "expense_count": 2}
+        ]
+      }
+    },
+    {
+      "id": "v3-group-this-month-category",
+      "category": "group_by",
+      "question": "total expenses this month by category",
+      "desired_outcome": "success",
+      "expected": {"dimension": "category", "metric": "total_expenses"}
+    },
+    {
+      "id": "v3-group-merchant-unsupported",
+      "category": "group_by",
+      "question": "total expenses by merchant",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "merchant is not an approved groupable dimension"}
+    },
+    {
+      "id": "v3-group-region-unsupported",
+      "category": "group_by",
+      "question": "total expenses by region",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "region is not an approved groupable dimension"}
+    },
+    {
+      "id": "v3-ranking-top-three",
+      "category": "ranking",
+      "question": "top 3 expense categories",
+      "desired_outcome": "success",
+      "expected": {
+        "dimension": "category",
+        "metric": "total_expenses",
+        "rows": [
+          {"category": "housing", "total_expenses": 900.0},
+          {"category": "food", "total_expenses": 47.5},
+          {"category": "transport", "total_expenses": 30.0}
+        ]
+      }
+    },
+    {
+      "id": "v3-ranking-highest",
+      "category": "ranking",
+      "question": "which category has the highest expenses?",
+      "desired_outcome": "success",
+      "expected": {
+        "dimension": "category",
+        "metric": "total_expenses",
+        "rows": [{"category": "housing", "total_expenses": 900.0}]
+      }
+    },
+    {
+      "id": "v3-ranking-lowest",
+      "category": "ranking",
+      "question": "which category has the lowest total expenses?",
+      "desired_outcome": "success",
+      "expected": {
+        "dimension": "category",
+        "metric": "total_expenses",
+        "rows": [{"category": "transport", "total_expenses": 30.0}]
+      }
+    },
+    {
+      "id": "v3-ranking-top-two-average",
+      "category": "ranking",
+      "question": "top 2 categories by average expense",
+      "desired_outcome": "success",
+      "expected": {"dimension": "category", "metric": "average_expense"}
+    },
+    {
+      "id": "v3-ranking-zero-limit",
+      "category": "ranking",
+      "question": "top 0 expense categories",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "limit must be at least 1"}
+    },
+    {
+      "id": "v3-ranking-excessive-limit",
+      "category": "ranking",
+      "question": "top 101 expense categories",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "limit exceeds the governed maximum"}
+    },
+    {
+      "id": "v3-comparison-months",
+      "category": "comparison",
+      "question": "compare total expenses this month with last month",
+      "desired_outcome": "success",
+      "expected": {"current": 977.5, "previous": 0.0, "difference": 977.5}
+    },
+    {
+      "id": "v3-comparison-categories",
+      "category": "comparison",
+      "question": "compare food spending with transport spending",
+      "desired_outcome": "success",
+      "expected": {"left": 47.5, "right": 30.0, "difference": 17.5}
+    },
+    {
+      "id": "v3-comparison-percentage",
+      "category": "comparison",
+      "question": "what is the percentage change in expenses from last month to this month?",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "percentage change from zero is undefined"}
+    },
+    {
+      "id": "v3-comparison-multiple-metrics",
+      "category": "comparison",
+      "question": "compare average expense with total expenses",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "multiple metrics require clarification"}
+    },
+    {
+      "id": "v3-unsupported-interesting",
+      "category": "unsupported",
+      "question": "show me something interesting",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "no approved analytical intent"}
+    },
+    {
+      "id": "v3-unsupported-fix",
+      "category": "unsupported",
+      "question": "fix my expenses",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "write or mutation intent is unsupported"}
+    },
+    {
+      "id": "v3-unsupported-forecast",
+      "category": "unsupported",
+      "question": "predict next year's spending",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "forecasting is outside the governed model"}
+    },
+    {
+      "id": "v3-unsupported-raw-rows",
+      "category": "unsupported",
+      "question": "show every expense record",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "raw row retrieval is unsupported"}
+    },
+    {
+      "id": "v3-unsupported-median",
+      "category": "unsupported",
+      "question": "median expense by category",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "median is not an approved metric"}
+    },
+    {
+      "id": "v3-unsupported-two-groups",
+      "category": "unsupported",
+      "question": "total expenses by category and merchant",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "multiple grouping dimensions are unsupported"}
+    },
+    {
+      "id": "v3-attack-delete",
+      "category": "attack",
+      "question": "delete expensive records",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "write intent must not reach SQL execution"}
+    },
+    {
+      "id": "v3-attack-ranking-statement",
+      "category": "attack",
+      "question": "top 3 expense categories; DROP TABLE expenses",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "SQL-shaped suffix must not be ignored"}
+    },
+    {
+      "id": "v3-attack-range-predicate",
+      "category": "attack",
+      "question": "total expenses between 2026-08-01 and 2026-08-31 OR 1=1",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "predicate-shaped suffix must not affect SQL"}
+    },
+    {
+      "id": "v3-attack-group-union",
+      "category": "attack",
+      "question": "expenses by category UNION SELECT password FROM users",
+      "desired_outcome": "safe_failure",
+      "expected": {"reason": "SQL-shaped grouping suffix must not be ignored"}
+    }
+  ]
+}
