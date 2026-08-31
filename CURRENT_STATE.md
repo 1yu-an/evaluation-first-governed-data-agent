@@ -1,28 +1,30 @@
 # Current Repository State
 
 Verified on: 2026-08-31 (Asia/Shanghai)
+
 Stable v1 base: `5afe98c157d416a797b473c5bbea21c87cbdfdb0`.
 
-v2 implementation branch: `codex/v2-personal-use`.
+Implementation branch: `codex/v2-personal-use`.
 
-Stable v1 hosted evidence: [CI Regression Gate run 33362492753](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33362492753)
+V2.2 implementation commit:
+`89778d4c449472677ae51e1f997d353780ea9396`.
 
-v2 implementation commit: `5c15f622f0daac6d85c7c6db30585d29d3de2b38`.
+V2.2 hosted evidence:
+[CI Regression Gate run 33388903984](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33388903984).
 
-v2 hosted evidence: [CI Regression Gate run 33369020553](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33369020553).
-
-This file is a concise status snapshot, not a second project README. The
-reviewer-facing source of truth for project 03 is
-[`03-governed-mysql-data-agent/README.md`](03-governed-mysql-data-agent/README.md).
+This is a concise snapshot. The reviewer-facing source of truth is
+[`03-governed-mysql-data-agent/README.md`](03-governed-mysql-data-agent/README.md),
+with final hardening evidence in
+[`V2_2_HARDENING_REPORT.md`](V2_2_HARDENING_REPORT.md).
 
 ## Feature status
 
-The stable v1 behavior is frozen. v2 adds a personal-use configuration layer:
-strict external JSON Domain Profiles, generic finite aggregate compilation,
-MySQL schema preflight, a concise ask CLI, and no-execution explain mode. The
-existing deterministic semantics, fail-closed behavior, AST SQL policy,
-least-privilege execution, strict result contracts, and fixed external
-Benchmark remain the compatibility gate.
+The stable v1 behavior remains frozen. V2 adds strict external JSON Domain
+Profiles, finite aggregate compilation, MySQL schema preflight, concise ask,
+and no-execution explain. V2.2 hardens explicit scope handling, stable
+secret-safe diagnostics, CLI help and environment defaults, minimal Profile
+scaffolding, and the complete personal-user smoke flow. It adds no new
+dependency or broad semantic path.
 
 ## Final architecture
 
@@ -42,7 +44,7 @@ Question
 
 ## Verified results
 
-- Project 03 ordinary suite: `203 passed, 1 skipped, 13 subtests passed`.
+- Project 03 ordinary suite: `223 passed, 1 skipped, 13 subtests passed`.
 - Project 00 suite: `59 passed`.
 - Repository structure/source validation: passed.
 - Repository audit tests: `17 passed`; deterministic audit: `PASS` with zero
@@ -61,7 +63,7 @@ Question
 
 ## MySQL safety evidence
 
-Local v2 acceptance used an isolated disposable MySQL Community Server
+Local V2.2 acceptance used an isolated disposable MySQL Community Server
 `8.0.46` on port 3307 and passed the real integration suite `10 / 10`.
 `setup_mysql.py` ran as the admin/setup identity; the distinct `data_agent_ro`
 runtime account had only `USAGE` plus `SELECT` on its target database. Direct
@@ -71,7 +73,7 @@ application AST Policy. Both demo and expenses Profiles passed
 three expenses metrics plus category filtering. The temporary instance and
 data directory were stopped and removed after the run.
 
-Hosted run `33369020553` independently passed the unified gate with disposable
+Hosted run `33388903984` independently passed the unified gate with disposable
 MySQL `8.0.46`, including `10 / 10` real integration tests. Its toolchain was
 Python `3.12.14`, Java `21.0.12.1`, and Maven `3.9.16`.
 
@@ -104,10 +106,13 @@ declared final governed result, not an unfinished target on the way to 56/56.
 | `f2a1392` | add governed metric catalog and payment metrics |
 | `07e8fdb` | add governed pending-orders metric |
 | `68795ef` | add governed maximum completed-order metric; freeze features |
+| `5c15f62` | add personal-use data agent Profiles |
+| `5cc370a` | record v2 acceptance evidence |
+| `89778d4` | harden personal data agent workflows for V2.2 |
 
 ## Compatibility and scope declaration
 
 Do not broaden the default demo resolver, modify the fixed Eval Set, or pursue
-56/56 as v2 packaging work. New personal metrics belong in external Profiles,
+56/56 as personal-use packaging work. New personal metrics belong in external Profiles,
 not Core source. Web UI, LLM semantic parsing, RAG, agent frameworks, arbitrary
 SQL, and schema auto-discovery remain outside the v2 MVP.

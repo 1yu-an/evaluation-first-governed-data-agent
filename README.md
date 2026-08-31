@@ -16,6 +16,8 @@
 3. [Personal-Use v2 PRD](PERSONAL_USE_V2_PRD.md) 与
    [Design](PERSONAL_USE_V2_DESIGN.md)：把稳定 v1 演进为可配置个人数据库 Agent 的需求、
    Profile/Core 边界与安全决策。
+4. [V2.2 Hardening PRD](V2_2_HARDENING_PRD.md) 与
+   [Report](V2_2_HARDENING_REPORT.md)：真实用户摩擦、候选 ROI 排序、选择边界与完整验收证据。
 
 03 README 是该项目面向 reviewer 的权威入口；`CURRENT_STATE.md` 只记录简洁的
 仓库状态快照。

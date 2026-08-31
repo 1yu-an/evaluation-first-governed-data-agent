@@ -44,7 +44,9 @@ V2.2 产品化加固还提供：
 [`PERSONAL_USE_V2_PRD.md`](../PERSONAL_USE_V2_PRD.md) 与
 [`PERSONAL_USE_V2_DESIGN.md`](../PERSONAL_USE_V2_DESIGN.md)。V2.2 的真实摩擦、
 候选排序和选择边界见
-[`V2_2_HARDENING_PRD.md`](../V2_2_HARDENING_PRD.md)。
+[`V2_2_HARDENING_PRD.md`](../V2_2_HARDENING_PRD.md)，最终本地、MySQL、Benchmark、
+安全与托管 CI 证据见
+[`V2_2_HARDENING_REPORT.md`](../V2_2_HARDENING_REPORT.md)。
 
 ## Why this is not ordinary Text-to-SQL / 为什么不是普通 Text-to-SQL
 
