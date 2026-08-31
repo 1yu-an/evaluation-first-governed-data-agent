@@ -2,6 +2,8 @@
 
 Verified on: 2026-08-31 (Asia/Shanghai)
 Frozen feature commit: `68795ef10b5c54a999eae3cc2e956595030cf1df`
+Evidence closure commit: `67986697a55537f4ebc463425c886fa65228c5d2`
+Hosted evidence: [CI Regression Gate run 33362031707](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33362031707)
 
 This file is a concise status snapshot, not a second project README. The
 reviewer-facing source of truth for project 03 is
@@ -37,6 +39,8 @@ Question
 - Repository structure/source validation: passed.
 - Repository audit tests: `17 passed`; deterministic audit: `PASS` with zero
   findings.
+- Project 01: `3` Maven tests, including a Spring Boot 4.0.8 context startup.
+- Project 06: `2` Maven tests, including a Spring Boot 4.0.8 context startup.
 - Fixed 56-case system Benchmark: `53 / 56` success.
 - Dimension results: outcome/conformance/state/policy/overall `0.946429`;
   verification `21 / 24 = 0.875000`.
@@ -49,14 +53,16 @@ Question
 
 ## MySQL safety evidence
 
-The opt-in real MySQL 8.0 integration suite passed `8 / 8` on the frozen feature
-commit. The runtime account had only `USAGE` plus `SELECT` on its target
-database. Direct UPDATE, INSERT, and DELETE attempts were rejected by MySQL
-independently of the application AST Policy. SQLite and MySQL evidence matched
-for all governed queries in the parity test.
+The hosted workflow provisioned disposable MySQL `8.0.46` and passed the real
+integration suite `8 / 8` on the evidence closure commit. `setup_mysql.py` ran
+as the admin/setup identity; the distinct `data_agent_ro` runtime account had
+only `USAGE` plus `SELECT` on its target database. Direct UPDATE, INSERT, and
+DELETE attempts were rejected by MySQL independently of the application AST
+Policy. SQLite and MySQL evidence matched for all governed queries in the
+parity test.
 
-MySQL remains an external, opt-in environment; the default demo and fixed
-Benchmark use deterministic SQLite.
+Local MySQL remains opt-in; hosted CI runs it without repository secrets. The
+default demo and fixed Benchmark continue to use deterministic SQLite.
 
 ## Remaining SAFE_FAILURE cases
 

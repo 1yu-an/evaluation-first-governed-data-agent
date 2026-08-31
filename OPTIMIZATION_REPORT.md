@@ -2,13 +2,13 @@
 
 Date: 2026-08-31 (Asia/Shanghai)
 Initial HEAD: `9356c14290dc747e2a31d925316cae766e0b7dcf`
-Overall status: **PARTIAL**
+Overall status: **DONE**
 
-The selected repository changes are implemented and every runnable local
-acceptance check passes. The result is marked `PARTIAL`, not `DONE`, because
-the opt-in real MySQL 8.0 integration suite could not be rerun without the
-repository-specific runtime credentials and explicit opt-in variables. Live
-GitHub Actions execution was also outside this local session.
+The selected repository changes are implemented, every runnable local check
+passes, and hosted GitHub Actions reproduced the complete gate against a
+disposable MySQL 8.0 service. The fixed Eval Set and benchmark score remain
+unchanged, both prohibited safety classes remain zero, and the real MySQL suite
+passed `8/8` with a distinct SELECT-only Agent identity.
 
 ## A. Initial State Summary
 
@@ -19,9 +19,11 @@ GitHub Actions execution was also outside this local session.
   `scripts/audit_repo.py` plus `tests/test_audit_repo.py` were untracked.
 - Those files were treated as user-owned work. They were preserved, audited,
   tested, and integrated into the gate; no destructive Git operation was used.
-- No commit was created because a logically complete audit-gate commit would
-  have had to claim or bundle the pre-existing untracked audit implementation.
-  The working tree remains intentionally reviewable.
+- No commit was created during the initial audit because a logically complete
+  audit-gate commit would have had to claim or bundle the pre-existing
+  untracked audit implementation. Final Evidence Closure later supplied
+  explicit authorization; all retained changes were reviewed and committed
+  without rewriting history or discarding user work.
 
 ### Architecture and delivery baseline
 
@@ -99,8 +101,9 @@ a required command was unavailable.
    expected mappings can pass vacuously. The fixed Project 03 set has no such
    case, so changing evaluator semantics without a product contract would risk
    unrelated behavior.
-3. **Real MySQL evidence is historical in this environment.** Documentation
-   records an 8/8 least-privilege run, but this session could not reproduce it.
+3. **Real MySQL evidence was initially historical.** Final Evidence Closure
+   resolved this gap with a hosted disposable MySQL 8.0.46 service and a new
+   `8/8` least-privilege run.
 
 ### P3 — Polish and evidence quality
 
@@ -160,9 +163,18 @@ not the latest stable release.
 - Project 06: Spring Boot `3.3.5` → `4.0.8`
 
 Both projects passed `mvn clean test` on Java 21 after the upgrade, including
-fresh compilation. The repository-wide Maven checks also passed afterward.
+fresh compilation. One minimal `@SpringBootTest` was added per application;
+the logs prove that both Spring Boot 4.0.8 ApplicationContexts actually start.
 
-### 5. Documentation and reproducibility
+### 5. Disposable real MySQL CI evidence
+
+The Ubuntu hosted job now provisions `mysql:8.0.46` with temporary, public-test
+credentials. It reuses Project 03's `setup_mysql.py` to create and seed the
+schema, creates a separate `data_agent_ro` runtime identity, revokes its prior
+privileges, and grants only `SELECT` on `data_agent.*`. The unified gate runs
+with `--with-mysql`; no GitHub Secret or second initialization system was added.
+
+### 6. Documentation and reproducibility
 
 - The root README now states that audit tests and the audit are mandatory
   acceptance checks.
@@ -206,26 +218,41 @@ Result: `FINAL RESULT: PASS`
 | Project 03 | 172 passed, 1 skipped, 13 subtests passed |
 | Project 04 | 1 passed |
 | Project 05 | 1 passed |
-| Project 01 | 2 tests; BUILD SUCCESS |
-| Project 06 | 1 test; BUILD SUCCESS |
+| Project 01 | 3 tests; BUILD SUCCESS; context started |
+| Project 06 | 2 tests; BUILD SUCCESS; context started |
 | Project 03 benchmark gate | PASS |
 
 Additional focused evidence:
 
 - `python -m pytest -q tests/test_integration_03.py`: 9 passed.
-- Project 01 `mvn clean test`: 2 tests, BUILD SUCCESS.
-- Project 06 `mvn clean test`: 1 test, BUILD SUCCESS.
+- Project 01 `mvn clean test`: 3 tests, BUILD SUCCESS; Spring Boot 4.0.8
+  context started.
+- Project 06 `mvn clean test`: 2 tests, BUILD SUCCESS; Spring Boot 4.0.8
+  context started.
 - `git diff --check`: PASS.
 - Maven 3.9.16 download SHA-512: verified against the official checksum.
 
-Not run:
+### Hosted GitHub Actions evidence
 
-- **Real MySQL integration — BLOCKED.** `MYSQL_AGENT_USER`,
-  `MYSQL_AGENT_PASSWORD`, and the explicit integration opt-in were not
-  available. The local MySQL80 service existing is insufficient authority to
-  invent or reuse credentials.
-- **Live GitHub Actions — NOT RUN.** Workflow syntax and pinned action majors
-  were reviewed locally, but hosted CI execution requires a pushed branch.
+- Workflow: [CI Regression Gate run 33362031707](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33362031707)
+- Evidence commit: `67986697a55537f4ebc463425c886fa65228c5d2`
+- Overall/job status: `success`; every recorded step succeeded.
+- Hosted toolchain: Python `3.12.14`, OpenJDK `21.0.12.1`, Apache Maven
+  `3.9.16`.
+- MySQL service: `mysql:8.0.46`, healthy and disposed after the job.
+- Effective Agent grants: `USAGE` on `*.*` plus `SELECT` on
+  `data_agent.*`; setup identity remained `root`, runtime identity was
+  `data_agent_ro`.
+- Real MySQL integration: `8 passed in 0.48s`. The suite verifies SELECT,
+  directly rejected INSERT/UPDATE/DELETE, scalar cardinality, exact grants,
+  and SQLite/MySQL evidence parity.
+- Hosted unified result: `FINAL RESULT: PASS`.
+
+Coverage boundary:
+
+- **Real MySQL integration — NOT RUN LOCALLY.** No local dedicated credentials
+  were invented or reused; the equivalent existing suite ran and passed in the
+  disposable hosted environment.
 - **Dedicated SCA/vulnerability scanner — NOT RUN.** No configured scanner or
   lockfile-backed SCA workflow was present. Dependency consistency was checked
   with `pip check`, and version decisions used official lifecycle sources.
@@ -264,15 +291,12 @@ UNSAFE_ALLOW=0 cases=none
 
 ## G. Remaining Risks
 
-1. Reproduce the 8-case real MySQL suite with a disposable MySQL 8.0 database,
-   least-privilege runtime account, and explicit credentials before release.
-2. Run the updated workflow on GitHub's Python 3.12/Java 21 environment.
-3. Treat future `sqlglot` upgrades as safety-sensitive and add parser-policy
+1. Treat future `sqlglot` upgrades as safety-sensitive and add parser-policy
    regression cases for any syntax behavior that changes.
-4. Define an explicit product contract before changing empty expected mappings
+2. Define an explicit product contract before changing empty expected mappings
    or adding semantic verification beyond the existing structural contract.
-5. The Spring Boot tests are small. Add context-start or HTTP smoke coverage if
-   these projects become deployment targets rather than portfolio examples.
+3. The Spring Boot tests prove context startup but not deployed HTTP behavior.
+   Add broader tests only if these examples become deployment targets.
 
 ## H. Portfolio Impact
 
@@ -291,12 +315,15 @@ UNSAFE_ALLOW=0 cases=none
 
 - All available required local checks: **PASS**.
 - Fixed Eval Set hash: unchanged.
+- Benchmark result: `53/56`; `SAFE_FAILURE=3`; `OVER_BLOCK=0`.
 - `FALSE_SUCCESS=0`: preserved and directly gated.
 - `UNSAFE_ALLOW=0`: preserved and directly gated.
-- Real MySQL integration: **BLOCKED**, accurately reported.
-- Live hosted CI: **NOT RUN**, accurately reported.
-- Working tree: intentionally uncommitted because it began with overlapping
-  user-owned changes; no user work was discarded.
+- Real MySQL integration: **PASS, 8/8** in disposable MySQL 8.0.46.
+- Live hosted CI: **PASS** for implementation commit `6798669`.
+- Local Acceptance Gate: **PASS**; local real MySQL accurately marked
+  `NOT RUN LOCALLY`.
+- Retained changes were committed and pushed without force, history rewrite,
+  or deletion of user work.
 
 ### Official lifecycle sources used
 
