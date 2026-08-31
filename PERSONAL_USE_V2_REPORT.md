@@ -12,8 +12,8 @@ the Profile offline and against real MySQL metadata, inspect a no-execution plan
 and ask supported aggregate questions through a concise CLI. The default demo
 behavior remains backward compatible.
 
-Final release status is assigned only after the branch is pushed and hosted CI
-passes. Until then the implementation is locally complete but not release-closed.
+Release status: **V2 MVP DONE**. The branch is pushed, all local acceptance
+evidence is green, and hosted CI passed with disposable real MySQL.
 
 ## B. First-Principles Decision
 
@@ -141,9 +141,17 @@ The temporary server was shut down and its exact data directory removed.
 
 ## J. Git and Hosted CI
 
-This section is completed after the implementation/evidence commits are pushed.
-Required closure evidence is a clean worktree, branch tracking `origin`, and a
-successful hosted workflow using MySQL 8.0.46, Python 3.12, Java 21, and Maven.
+- Implementation commit:
+  `5c15f622f0daac6d85c7c6db30585d29d3de2b38`.
+- Branch: `codex/v2-personal-use`, tracking
+  `origin/codex/v2-personal-use`.
+- Hosted evidence:
+  [CI Regression Gate run 33369020553](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33369020553).
+- Hosted conclusion: success; every workflow step passed.
+- Hosted toolchain: Python `3.12.14`, Java `21.0.12.1`, Maven `3.9.16`, and
+  disposable MySQL `8.0.46`.
+- Hosted real MySQL integration: `10 passed`; unified gate printed
+  `FINAL RESULT: PASS`.
 
 ## K. Residual Boundaries
 

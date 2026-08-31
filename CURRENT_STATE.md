@@ -7,6 +7,10 @@ v2 implementation branch: `codex/v2-personal-use`.
 
 Stable v1 hosted evidence: [CI Regression Gate run 33362492753](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33362492753)
 
+v2 implementation commit: `5c15f622f0daac6d85c7c6db30585d29d3de2b38`.
+
+v2 hosted evidence: [CI Regression Gate run 33369020553](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33369020553).
+
 This file is a concise status snapshot, not a second project README. The
 reviewer-facing source of truth for project 03 is
 [`03-governed-mysql-data-agent/README.md`](03-governed-mysql-data-agent/README.md).
@@ -66,6 +70,10 @@ application AST Policy. Both demo and expenses Profiles passed
 `INFORMATION_SCHEMA` validation, and SQLite/MySQL evidence matched for the
 three expenses metrics plus category filtering. The temporary instance and
 data directory were stopped and removed after the run.
+
+Hosted run `33369020553` independently passed the unified gate with disposable
+MySQL `8.0.46`, including `10 / 10` real integration tests. Its toolchain was
+Python `3.12.14`, Java `21.0.12.1`, and Maven `3.9.16`.
 
 Local MySQL remains opt-in; hosted CI runs it without repository secrets. The
 default demo and fixed Benchmark continue to use deterministic SQLite.
