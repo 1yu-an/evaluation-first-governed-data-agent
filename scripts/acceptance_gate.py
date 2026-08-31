@@ -59,6 +59,12 @@ def build_checks(with_mysql: bool = False, root: Path = ROOT) -> list[Check]:
     checks = [
         Check("Repository validation", (python, "scripts/validate_all.py"), root),
         Check(
+            "Repository audit tests",
+            (python, "-m", "pytest", "-q", "tests/test_audit_repo.py"),
+            root,
+        ),
+        Check("Repository audit", (python, "scripts/audit_repo.py"), root),
+        Check(
             "Acceptance gate tests",
             (python, "-m", "pytest", "-q", "tests/test_acceptance_gate.py"),
             root,

@@ -11,20 +11,44 @@ jobs:
   regression-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: data_agent
+      MYSQL_ADMIN_USER: root
+      MYSQL_ADMIN_PASSWORD: ci-root-test-only
+      MYSQL_AGENT_USER: data_agent_ro
+      MYSQL_AGENT_PASSWORD: ci-agent-test-only
+      MYSQL_AGENT_HOST_PATTERN: "%"
+
+    services:
+      mysql:
+        image: mysql:8.0.46
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-test-only
+          MYSQL_DATABASE: data_agent
+          MYSQL_ROOT_HOST: "%"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-test-only --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements-dev.txt
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -33,8 +57,14 @@ jobs:
       - name: Install declared dependencies
         run: python -m pip install -r requirements-dev.txt
 
-      - name: Verify Maven availability
-        run: mvn --version
+      - name: Verify toolchain
+        run: |
+          python --version
+          java -version
+          mvn --version
 
-      - name: Run repository acceptance gate
-        run: python scripts/acceptance_gate.py
+      - name: Set up disposable MySQL schema and read-only agent
+        run: python 03-governed-mysql-data-agent/scripts/setup_mysql.py
+
+      - name: Run repository acceptance gate with real MySQL
+        run: python scripts/acceptance_gate.py --with-mysql

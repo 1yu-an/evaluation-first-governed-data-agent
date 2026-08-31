@@ -163,7 +163,7 @@ cd 00-agent-eval-harness
 python -m pytest -q
 ```
 
-当前结果：`57 passed`。
+当前结果：`59 passed`。
 
 ### Fixed 56-case system Benchmark
 
@@ -191,12 +191,17 @@ python -m src.integration_benchmark
 GitHub Actions 的单一 Python 3.12 job 从干净 checkout 安装根目录
 `requirements-dev.txt`，然后运行 repository validation、完整 03 tests、完整
 00 tests，以及带 `config/03_regression_gate.json` 的固定 56-case Benchmark。
-Benchmark gate 直接使用现有机器可读断言；任何阈值退化都会返回非零退出码。00 的
-集成测试同时锁定 56-case Eval Set SHA-256，并断言最终 `53/56`、
-`SAFE_FAILURE=3`、`FALSE_SUCCESS=0`、`UNSAFE_ALLOW=0` 和 `OVER_BLOCK=0`。
+Benchmark report 会直接输出互斥的 safety classification；gate 除了检查既有机器
+可读阈值，还会无条件硬门禁 `FALSE_SUCCESS=0` 与 `UNSAFE_ALLOW=0`，因此即使聚合
+分数仍达标，这两项安全退化也会返回非零退出码。00 的集成测试同时锁定 56-case
+Eval Set SHA-256，并断言最终 `53/56`、`SAFE_FAILURE=3`、
+`FALSE_SUCCESS=0`、`UNSAFE_ALLOW=0` 和 `OVER_BLOCK=0`。
 
-默认 CI 使用确定性 SQLite，不运行真实 MySQL。真实 MySQL 仍按下节说明 opt-in
-执行，因为它需要外部 MySQL 8.0 与管理员级 setup 权限。
+CI 的 Benchmark 仍使用确定性 SQLite，同时 job 会创建一次性 MySQL 8.0 service
+container，使用仅限该次运行的测试凭据调用现有 `setup_mysql.py`，再通过
+`acceptance_gate.py --with-mysql` 执行 8-case 真实 MySQL 集成测试。管理员 setup
+身份与 Agent runtime 身份分离，Agent 仅获得 demo database 的 `SELECT`。本地真实
+MySQL 仍按下节说明显式 opt-in，因为本地环境需要自行准备数据库与凭据。
 
 ## Engineering Evolution / 工程演进
 

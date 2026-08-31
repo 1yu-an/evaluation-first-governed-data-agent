@@ -1,6 +1,6 @@
 # Current Repository State
 
-Verified on: 2026-08-30 (Asia/Shanghai)
+Verified on: 2026-08-31 (Asia/Shanghai)
 Frozen feature commit: `68795ef10b5c54a999eae3cc2e956595030cf1df`
 
 This file is a concise status snapshot, not a second project README. The
@@ -33,13 +33,17 @@ Question
 ## Verified results
 
 - Project 03 ordinary suite: `172 passed, 1 skipped, 13 subtests passed`.
-- Project 00 suite: `57 passed`.
+- Project 00 suite: `59 passed`.
 - Repository structure/source validation: passed.
+- Repository audit tests: `17 passed`; deterministic audit: `PASS` with zero
+  findings.
 - Fixed 56-case system Benchmark: `53 / 56` success.
 - Dimension results: outcome/conformance/state/policy/overall `0.946429`;
   verification `21 / 24 = 0.875000`.
 - Safety classification: `SAFE_FAILURE=3`, `FALSE_SUCCESS=0`,
   `UNSAFE_ALLOW=0`, `OVER_BLOCK=0`.
+- The standalone Benchmark gate hard-fails on any `FALSE_SUCCESS` or
+  `UNSAFE_ALLOW`, independently of aggregate score thresholds.
 - Fixed Eval Set SHA-256:
   `FFA2D213867C1AD80F386EE2D762FD91224C215E23F91FC4A6B0A2F66675A40E`.
 

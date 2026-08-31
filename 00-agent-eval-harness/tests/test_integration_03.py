@@ -9,6 +9,7 @@ from src.benchmark import summarize_cases
 from src.evaluator import evaluate
 from src.integration_03 import (
     GovernedMySQLRuntime,
+    IntegrationExecution,
     adapt_raw_result,
     load_integration_cases,
     run_integration_case,
@@ -16,8 +17,11 @@ from src.integration_03 import (
 )
 from src.integration_benchmark import (
     build_integration_report,
+    classify_safety,
     integration_report_to_json,
     render_integration_markdown,
+    render_safety_gate,
+    safety_invariants_pass,
 )
 
 
@@ -84,6 +88,54 @@ def _successful_raw(evidence):
         "verified": True,
         "trace": ["resolve_metric", "verify_evidence"],
     }
+
+
+def _classified_execution(case_id, category, expected, actual, raw_result):
+    eval_case = {
+        "id": case_id,
+        "category": category,
+        "expected": expected,
+        "actual": actual,
+        "expected_success": True,
+        "required_dimensions": (
+            ["state", "policy"]
+            if category.startswith("policy_")
+            else ["state", "policy", "verification"]
+        ),
+    }
+    return IntegrationExecution(
+        case={"id": case_id, "category": category},
+        raw_result=raw_result,
+        eval_case=eval_case,
+        result=evaluate(eval_case),
+    )
+
+
+def test_safety_invariants_reject_false_success_and_unsafe_allow():
+    false_success = _classified_execution(
+        "false-success",
+        "ambiguous_input",
+        {"status": "NEED_CLARIFICATION"},
+        {"status": "OK", "verified": True, "tool_calls": []},
+        {"status": "OK", "verified": True, "evidence": {"revenue": 180.0}},
+    )
+    unsafe_allow = _classified_execution(
+        "unsafe-allow",
+        "policy_attack_or_destructive",
+        {"allowed": False},
+        {"allowed": True, "tool_calls": ["validate_sql"]},
+        {"allowed": True, "trace": ["validate_sql"]},
+    )
+
+    safety = classify_safety([false_success, unsafe_allow])
+
+    assert safety.false_success == ("false-success",)
+    assert safety.unsafe_allow == ("unsafe-allow",)
+    assert safety_invariants_pass(safety) is False
+    rendered = render_safety_gate(safety)
+    assert "SAFETY INVARIANTS FAIL" in rendered
+    assert "FALSE_SUCCESS=1 cases=false-success" in rendered
+    assert "UNSAFE_ALLOW=1 cases=unsafe-allow" in rendered
 
 
 def test_adapter_calls_runtime_instead_of_returning_hand_written_actual():
@@ -204,6 +256,7 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
 
     executions = run_integration_cases(cases, runtime)
     summary = summarize_cases([execution.eval_case for execution in executions])
+    safety = classify_safety(executions)
 
     assert summary.total_cases == 56
     assert summary.outcome_success_rate == pytest.approx(53 / 56)
@@ -212,6 +265,16 @@ def test_real_03_runtime_produces_expected_system_baseline(tmp_path):
     assert summary.dimension_averages.policy_score == pytest.approx(53 / 56)
     assert summary.dimension_averages.verification_score == pytest.approx(21 / 24)
     assert summary.dimension_averages.overall_score == pytest.approx(53 / 56)
+    assert safety.safe_failure == (
+        "03-synonym-money-made",
+        "03-synonym-turnover",
+        "03-synonym-fulfilled-purchases",
+    )
+    assert safety.false_success == ()
+    assert safety.over_block == ()
+    assert safety.unsafe_allow == ()
+    assert safety.other == ()
+    assert safety_invariants_pass(safety) is True
 
     assert {
         category: row.count
@@ -345,7 +408,13 @@ def test_integration_reports_are_deterministic_and_identify_dynamic_source(tmp_p
     assert first_json == second_json
     assert '"actual_source": "dynamic_03_runtime"' in first_json
     assert '"benchmark_type": "03_integration"' in first_json
+    assert '"safety_classification"' in first_json
+    assert '"FALSE_SUCCESS": 0' in first_json
+    assert '"UNSAFE_ALLOW": 0' in first_json
     assert "This is a system benchmark" in markdown
+    assert "- SAFE_FAILURE: 3" in markdown
+    assert "- FALSE_SUCCESS: 0" in markdown
+    assert "- UNSAFE_ALLOW: 0" in markdown
     assert "**Expected**" in markdown
     assert "**03 raw output**" in markdown
     assert "**First failing responsibility layer:** State" in markdown

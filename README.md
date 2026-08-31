@@ -64,21 +64,53 @@ Run the complete required acceptance suite from the repository root:
 python scripts/acceptance_gate.py
 ```
 
-The gate runs repository validation, its own orchestration tests, Python tests
-for projects 00/02/03/04/05, Maven tests for projects 01/06, and the existing
-fixed 56-case Project 03 regression Benchmark. It returns exit code 0 and
-prints `FINAL RESULT: PASS` only when every required check passes. A failed
-test or Benchmark, a command startup error, or missing Java/Maven produces a
+The gate runs repository validation, repository-audit tests and the read-only
+audit itself, its own orchestration tests, Python tests for projects
+00/02/03/04/05, Maven tests for projects 01/06, and the existing fixed 56-case
+Project 03 regression Benchmark. It returns exit code 0 and prints
+`FINAL RESULT: PASS` only when every required check passes. A failed test,
+audit, or Benchmark, a command startup error, or missing Java/Maven produces a
 non-zero exit code. Prerequisites are Python 3.12, Java 21, and Maven; install
 Python dependencies with `python -m pip install -r requirements-dev.txt`.
 
-Real MySQL 8.0 integration remains external and opt-in because it needs a
-prepared database and dedicated credentials. After following the Project 03
-README environment setup, include it explicitly:
+Local real MySQL 8.0 integration remains opt-in because it needs a prepared
+database and dedicated credentials. After following the Project 03 README
+environment setup, include it explicitly:
 
 ```bash
 python scripts/acceptance_gate.py --with-mysql
 ```
+
+Hosted CI provisions a disposable MySQL 8.0 service container with test-only
+credentials, reuses Project 03's `setup_mysql.py`, and runs the same gate with
+`--with-mysql`. The setup identity and Agent runtime identity are separate; the
+Agent receives only `SELECT` on the demo database.
+
+## Repository Audit v1 / Static repository health
+
+Run the deterministic, read-only repository audit from the repository root:
+
+```bash
+python scripts/audit_repo.py
+python scripts/audit_repo.py --json
+```
+
+The audit inspects Git-tracked hygiene, large files, technical-debt comments,
+high-confidence secret risks, dependency declarations, documentation
+references, and project/test structure. It does not run tests or benchmarks,
+modify files, delete artifacts, format code, or update dependencies. The
+Repository Acceptance Gate runs both the audit and its tests as required
+checks.
+
+`PASS` and advisory `WARN` results exit with code 0. A high-confidence `HIGH`
+finding produces `FAIL` and exit code 1. JSON is written to stdout without
+human-readable log lines when `--json` is used. No report file is created by
+default; an explicit path can be requested when needed:
+
+```bash
+python scripts/audit_repo.py --output reports/repository_audit.json
+```
+
 ## Shared commands / 通用命令
 
 ```bash

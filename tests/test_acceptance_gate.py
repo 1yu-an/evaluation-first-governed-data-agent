@@ -104,6 +104,15 @@ def test_mysql_suite_is_only_added_by_explicit_option(tmp_path):
     assert mysql_checks[-1].env == {"RUN_MYSQL_INTEGRATION": "1"}
 
 
+def test_build_checks_includes_repository_audit_and_its_tests(tmp_path):
+    checks = {check.name: check for check in build_checks(root=tmp_path)}
+
+    assert checks["Repository audit tests"].command[-1] == (
+        "tests/test_audit_repo.py"
+    )
+    assert checks["Repository audit"].command[-1] == "scripts/audit_repo.py"
+
+
 def test_build_checks_uses_resolved_maven_executable(monkeypatch, tmp_path):
     resolved_maven = str(tmp_path / "apache-maven" / "bin" / "mvn.cmd")
     monkeypatch.setattr(
