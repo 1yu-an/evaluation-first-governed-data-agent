@@ -90,6 +90,12 @@ def setup() -> list[str]:
             "id BIGINT PRIMARY KEY,order_id BIGINT NOT NULL,"
             "status VARCHAR(32) NOT NULL,amount DECIMAL(12,2) NOT NULL)"
         )
+        cursor.execute(
+            "CREATE TABLE IF NOT EXISTS expenses("
+            "id BIGINT PRIMARY KEY,spent_on DATE NOT NULL,"
+            "category VARCHAR(40) NOT NULL,merchant VARCHAR(100) NOT NULL,"
+            "amount DECIMAL(12,2) NOT NULL,note VARCHAR(255) NULL)"
+        )
         cursor.executemany(
             "INSERT INTO orders(id,status,total,region) VALUES(%s,%s,%s,%s) "
             "ON DUPLICATE KEY UPDATE status=VALUES(status),"
@@ -115,6 +121,20 @@ def setup() -> list[str]:
             "status=VALUES(status),amount=VALUES(amount)",
             (1, 1, "completed", 20),
         )
+        cursor.executemany(
+            "INSERT INTO expenses(id,spent_on,category,merchant,amount,note) "
+            "VALUES(%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE "
+            "spent_on=VALUES(spent_on),category=VALUES(category),"
+            "merchant=VALUES(merchant),amount=VALUES(amount),note=VALUES(note)",
+            [
+                (1, "2026-08-01", "food", "Cafe", 12.50, "breakfast"),
+                (2, "2026-08-03", "food", "Market", 30.00, "groceries"),
+                (3, "2026-08-05", "transport", "Metro", 8.00, "commute"),
+                (4, "2026-08-09", "transport", "Taxi", 22.00, "late ride"),
+                (5, "2026-08-10", "housing", "Landlord", 900.00, "rent"),
+                (6, "2026-08-12", "food", "Bakery", 5.00, "snack"),
+            ],
+        )
         cursor.execute(
             f"CREATE USER IF NOT EXISTS {account} IDENTIFIED BY %s",
             (agent_password,),
@@ -138,7 +158,7 @@ if __name__ == "__main__":
         grants = setup()
     except ExecutionError as error:
         raise SystemExit(f"MySQL setup failed: {error}") from error
-    print("MySQL demo schema, seed data, and read-only account are ready.")
+    print("MySQL demo and expenses schemas, seed data, and read-only account are ready.")
     print("Effective agent grants:")
     for grant in grants:
         print(f"- {grant}")

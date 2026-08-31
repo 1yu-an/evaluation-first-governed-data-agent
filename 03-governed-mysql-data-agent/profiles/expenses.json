@@ -1,0 +1,111 @@
+{
+  "profile_version": 1,
+  "id": "expenses",
+  "description": "Personal expense analytics example",
+  "language": {
+    "token_normalization": {
+      "expenses": "expense",
+      "purchases": "purchase"
+    },
+    "scope_ambiguity_markers": [],
+    "guard_rules": [
+      {
+        "id": "forecast",
+        "reason": "forecast expense semantics require clarification",
+        "all_features": [],
+        "any_features": ["forecast", "predict", "projection"]
+      },
+      {
+        "id": "negated",
+        "reason": "negated expense semantics require clarification",
+        "all_features": [],
+        "any_features": ["exclude", "excluding", "not", "without"]
+      }
+    ]
+  },
+  "dimensions": [
+    {
+      "id": "category",
+      "phrases": {
+        "food": "food",
+        "groceries": "food",
+        "grocery": "food",
+        "dining": "food",
+        "transport": "transport",
+        "transportation": "transport",
+        "transit": "transport",
+        "housing": "housing",
+        "rent": "housing"
+      },
+      "adjacent_labels": []
+    }
+  ],
+  "metrics": [
+    {
+      "id": "total_expenses",
+      "meaning": "Sum of recorded expense amounts",
+      "canonical_forms": ["total_expenses", "total expenses"],
+      "synonyms": ["amount spent", "total spending"],
+      "cjk_aliases": [],
+      "composition_patterns": [
+        [["total", "sum"], ["expense", "spending"]]
+      ],
+      "allowed_dimensions": ["category"],
+      "result_key": {"mode": "metric"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "sum",
+        "source": {"table": "expenses", "alias": "e"},
+        "column": "amount",
+        "round_digits": 2,
+        "coalesce_zero": true,
+        "fixed_predicates": [],
+        "filter_bindings": {"category": {"column": "category"}}
+      }
+    },
+    {
+      "id": "expense_count",
+      "meaning": "Count of recorded expense rows",
+      "canonical_forms": ["expense_count", "expense count"],
+      "synonyms": ["number of expenses", "how many expenses"],
+      "cjk_aliases": [],
+      "composition_patterns": [
+        [["expense"], ["__count_intent__"]]
+      ],
+      "allowed_dimensions": ["category"],
+      "result_key": {"mode": "metric"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "count",
+        "source": {"table": "expenses", "alias": "e"},
+        "column": null,
+        "round_digits": null,
+        "coalesce_zero": false,
+        "fixed_predicates": [],
+        "filter_bindings": {"category": {"column": "category"}}
+      }
+    },
+    {
+      "id": "average_expense",
+      "meaning": "Average recorded expense amount",
+      "canonical_forms": ["average_expense", "average expense"],
+      "synonyms": ["mean expense", "average spending"],
+      "cjk_aliases": [],
+      "composition_patterns": [
+        [["average", "avg", "mean"], ["expense", "spending"]]
+      ],
+      "allowed_dimensions": ["category"],
+      "result_key": {"mode": "metric"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "avg",
+        "source": {"table": "expenses", "alias": "e"},
+        "column": "amount",
+        "round_digits": 2,
+        "coalesce_zero": false,
+        "fixed_predicates": [],
+        "filter_bindings": {"category": {"column": "category"}}
+      }
+    }
+  ]
+}

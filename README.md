@@ -13,6 +13,9 @@
    evaluation-first governed agent 主案例、快速演示、架构、安全边界和工程演进证据。
 2. [00 Agent Eval Harness](00-agent-eval-harness/README.md)：03 使用的固定评测集、
    维度化评测、Benchmark Report 和 Regression Gate。
+3. [Personal-Use v2 PRD](PERSONAL_USE_V2_PRD.md) 与
+   [Design](PERSONAL_USE_V2_DESIGN.md)：把稳定 v1 演进为可配置个人数据库 Agent 的需求、
+   Profile/Core 边界与安全决策。
 
 03 README 是该项目面向 reviewer 的权威入口；`CURRENT_STATE.md` 只记录简洁的
 仓库状态快照。

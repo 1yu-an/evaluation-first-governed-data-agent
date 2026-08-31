@@ -1,18 +1,20 @@
+"""Finite SQL compiler for validated Domain Profile operations."""
+
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Any
 
-from .catalog import (
-    METRIC_CATALOG,
-    CompilerStrategy,
+from .catalog import CompilerStrategy
+from .profile import (
+    AggregateOperation,
+    DifferenceOfSumsOperation,
+    DomainProfile,
     MetricDefinition,
+    load_default_profile,
 )
 from .semantic import PLAN_READY, SemanticPlan
 from .verification import ResultContract
-
-
-ALLOWED_REGION_VALUES = frozenset({"east", "west", "north", "south"})
 
 
 class CompileError(ValueError):
@@ -28,215 +30,164 @@ class CompiledQuery:
 
     def __post_init__(self) -> None:
         if self.result_contract.expected_key != self.result_metric:
-            raise ValueError(
-                "result contract key must match compiled result metric"
-            )
+            raise ValueError("result contract key must match compiled result metric")
 
 
-def _validated_region(
-    filters: dict[str, str], allowed_fields: frozenset[str]
-) -> str | None:
-    unknown_fields = set(filters) - allowed_fields
+def _validated_filters(
+    plan: SemanticPlan,
+    definition: MetricDefinition,
+    profile: DomainProfile,
+) -> dict[str, str]:
+    unknown_fields = set(plan.filters) - definition.allowed_filters
     if unknown_fields:
         fields = ", ".join(sorted(str(field) for field in unknown_fields))
         raise CompileError(f"unsupported filter field: {fields} / 不支持的过滤字段")
+    result = {}
+    for field, value in plan.filters.items():
+        if not isinstance(value, str) or not value.strip():
+            raise CompileError(
+                f"unsupported {field} value shape / 不支持的过滤值形状"
+            )
+        normalized = value.strip().lower()
+        dimension = profile.dimensions[field]
+        if normalized not in dimension.allowed_values:
+            raise CompileError(
+                f"unsupported {field} value: {normalized} / 不支持的过滤值"
+            )
+        result[field] = normalized
+    return result
 
-    if "region" not in filters:
-        return None
 
-    value = filters["region"]
-    if not isinstance(value, str) or not value.strip():
-        raise CompileError("unsupported region value shape / 不支持的地域值形状")
-
-    region = value.strip().lower()
-    if region not in ALLOWED_REGION_VALUES:
-        raise CompileError(f"unsupported region value: {region} / 不支持的地域值")
-    return region
-
-
-def _compiled_query(
-    definition: MetricDefinition,
-    sql: str,
-    *,
-    region: str | None = None,
-    params: tuple[Any, ...] = (),
-) -> CompiledQuery:
+def _result_parts(
+    definition: MetricDefinition, filters: dict[str, str]
+) -> tuple[str, ResultContract]:
     result_metric = definition.metric_id
     contract = definition.result_contract
-    if region is not None:
-        result_metric = f"{region}_{definition.metric_id}"
+    if definition.result_key.mode == "dimension_value_prefix" and filters:
+        value = filters[next(iter(filters))]
+        result_metric = f"{value}_{definition.metric_id}"
         contract = replace(contract, expected_key=result_metric)
+    return result_metric, contract
+
+
+def _where(predicates: list[str]) -> str:
+    return " WHERE " + " AND ".join(predicates) if predicates else ""
+
+
+def _aggregate_expression(operation: AggregateOperation) -> str:
+    if operation.aggregate == "count":
+        expression = "COUNT(*)"
+    else:
+        expression = f"{operation.aggregate.upper()}({operation.column})"
+    if operation.coalesce_zero:
+        expression = f"COALESCE({expression},0)"
+    if operation.round_digits is not None:
+        expression = f"ROUND({expression},{operation.round_digits})"
+    return expression
+
+
+def _compile_aggregate(
+    definition: MetricDefinition,
+    operation: AggregateOperation,
+    filters: dict[str, str],
+) -> CompiledQuery:
+    result_metric, contract = _result_parts(definition, filters)
+    predicates = [
+        f"{predicate.column}='{predicate.value}'"
+        for predicate in operation.fixed_predicates
+    ]
+    params = []
+    for field, value in filters.items():
+        predicates.append(f"{operation.filter_bindings[field].column}=?")
+        params.append(value)
+    sql = (
+        f"SELECT {_aggregate_expression(operation)} AS {definition.metric_id} "
+        f"FROM {operation.source.table}{_where(predicates)}"
+    )
     return CompiledQuery(
         sql=sql,
         result_metric=result_metric,
         result_contract=contract,
-        params=params,
+        params=tuple(params),
     )
 
 
-def _compile_revenue(
-    definition: MetricDefinition, region: str | None
-) -> CompiledQuery:
-    if region is not None:
-        return _compiled_query(
-            definition,
-            sql=(
-                "SELECT ROUND(COALESCE((SELECT SUM(p.amount) FROM payments AS p "
-                "JOIN orders AS o ON o.id=p.order_id WHERE p.status='completed' "
-                "AND o.region=?),0) - COALESCE((SELECT SUM(r.amount) FROM refunds AS r "
-                "JOIN orders AS o ON o.id=r.order_id WHERE r.status='completed' "
-                "AND o.region=?),0),2) AS revenue"
-            ),
-            region=region,
-            params=(region, region),
+def _sum_subquery(side, join, *, right: bool, filtered: bool) -> str:
+    if not filtered:
+        predicates = [
+            f"{item.column}='{item.value}'" for item in side.fixed_predicates
+        ]
+        return (
+            f"SELECT SUM({side.column}) FROM {side.source.table}"
+            f"{_where(predicates)}"
         )
-    return _compiled_query(
-        definition,
-        sql=(
-            "SELECT ROUND(COALESCE((SELECT SUM(amount) FROM payments "
-            "WHERE status='completed'),0) - COALESCE((SELECT SUM(amount) "
-            "FROM refunds WHERE status='completed'),0),2) AS revenue"
-        ),
+    join_side = join.right_join if right else join.left_join
+    source_alias = side.source.alias
+    predicates = [
+        f"{source_alias}.{item.column}='{item.value}'"
+        for item in side.fixed_predicates
+    ]
+    predicates.append(f"{join.alias}.{join.value_column}=?")
+    return (
+        f"SELECT SUM({source_alias}.{side.column}) FROM {side.source.table} "
+        f"AS {source_alias} JOIN {join.table} AS {join.alias} ON "
+        f"{join.alias}.{join_side.target_column}="
+        f"{source_alias}.{join_side.source_column}{_where(predicates)}"
     )
 
 
-def _compile_completed_order_count(
-    definition: MetricDefinition, region: str | None
+def _compile_difference(
+    definition: MetricDefinition,
+    operation: DifferenceOfSumsOperation,
+    filters: dict[str, str],
 ) -> CompiledQuery:
-    if region is not None:
-        return _compiled_query(
-            definition,
-            sql=(
-                "SELECT COUNT(*) AS completed_orders FROM orders "
-                "WHERE status='completed' AND region=?"
-            ),
-            region=region,
-            params=(region,),
-        )
-    return _compiled_query(
-        definition,
-        sql=(
-            "SELECT COUNT(*) AS completed_orders FROM orders "
-            "WHERE status='completed'"
-        ),
+    result_metric, contract = _result_parts(definition, filters)
+    join = None
+    params: tuple[Any, ...] = ()
+    if filters:
+        field, value = next(iter(filters.items()))
+        join = operation.filter_joins[field]
+        params = (value, value)
+    left = _sum_subquery(
+        operation.left, join, right=False, filtered=join is not None
     )
-
-
-def _compile_pending_order_count(
-    definition: MetricDefinition, region: str | None
-) -> CompiledQuery:
-    if region is not None:
-        raise CompileError("pending orders do not support region filters")
-    return _compiled_query(
-        definition,
-        sql=(
-            "SELECT COUNT(*) AS pending_orders FROM orders "
-            "WHERE status='pending'"
-        ),
+    right = _sum_subquery(
+        operation.right, join, right=True, filtered=join is not None
     )
-
-
-def _compile_avg_completed_order_value(
-    definition: MetricDefinition, region: str | None
-) -> CompiledQuery:
-    if region is not None:
-        return _compiled_query(
-            definition,
-            sql=(
-                "SELECT ROUND(AVG(total),2) AS avg_order_value FROM orders "
-                "WHERE status='completed' AND region=?"
-            ),
-            region=region,
-            params=(region,),
-        )
-    return _compiled_query(
-        definition,
-        sql=(
-            "SELECT ROUND(AVG(total),2) AS avg_order_value FROM orders "
-            "WHERE status='completed'"
-        ),
+    sql = (
+        f"SELECT ROUND(COALESCE(({left}),0) - COALESCE(({right}),0),"
+        f"{operation.round_digits}) AS {definition.metric_id}"
     )
+    return CompiledQuery(sql, result_metric, contract, params)
 
 
-def _compile_max_completed_order_total(
-    definition: MetricDefinition, region: str | None
-) -> CompiledQuery:
-    if region is not None:
-        raise CompileError(
-            "maximum completed order total does not support region filters"
-        )
-    return _compiled_query(
-        definition,
-        sql=(
-            "SELECT MAX(total) AS max_completed_order_total FROM orders "
-            "WHERE status='completed'"
-        ),
-    )
-
-
-def _compile_completed_payment_sum(
-    definition: MetricDefinition, region: str | None
-) -> CompiledQuery:
-    if region is not None:
-        raise CompileError("completed payments do not support region filters")
-    return _compiled_query(
-        definition,
-        sql=(
-            "SELECT ROUND(COALESCE(SUM(amount),0),2) AS completed_payments "
-            "FROM payments WHERE status='completed'"
-        ),
-    )
-
-
-def _compile_completed_refund_sum(
-    definition: MetricDefinition, region: str | None
-) -> CompiledQuery:
-    if region is not None:
-        raise CompileError("completed refunds do not support region filters")
-    return _compiled_query(
-        definition,
-        sql=(
-            "SELECT ROUND(COALESCE(SUM(amount),0),2) AS completed_refunds "
-            "FROM refunds WHERE status='completed'"
-        ),
-    )
-
-
-CompilerFunction = Callable[[MetricDefinition, str | None], CompiledQuery]
-_STRATEGY_COMPILERS: dict[CompilerStrategy, CompilerFunction] = {
-    CompilerStrategy.REVENUE: _compile_revenue,
-    CompilerStrategy.COMPLETED_ORDER_COUNT: _compile_completed_order_count,
-    CompilerStrategy.PENDING_ORDER_COUNT: _compile_pending_order_count,
-    CompilerStrategy.AVG_COMPLETED_ORDER_VALUE: (
-        _compile_avg_completed_order_value
-    ),
-    CompilerStrategy.MAX_COMPLETED_ORDER_TOTAL: (
-        _compile_max_completed_order_total
-    ),
-    CompilerStrategy.COMPLETED_PAYMENT_SUM: _compile_completed_payment_sum,
-    CompilerStrategy.COMPLETED_REFUND_SUM: _compile_completed_refund_sum,
-}
-STRATEGY_COMPILERS: Mapping[CompilerStrategy, CompilerFunction] = (
-    MappingProxyType(_STRATEGY_COMPILERS)
+CompilerFunction = Callable[..., CompiledQuery]
+STRATEGY_COMPILERS: Mapping[CompilerStrategy, CompilerFunction] = MappingProxyType(
+    {
+        CompilerStrategy.AGGREGATE: _compile_aggregate,
+        CompilerStrategy.DIFFERENCE_OF_SUMS: _compile_difference,
+    }
 )
 
 
-def compile_plan(plan: SemanticPlan) -> CompiledQuery:
-    """Compile only an explicit SemanticPlan; never inspect the user question."""
+def compile_plan(
+    plan: SemanticPlan, profile: DomainProfile | None = None
+) -> CompiledQuery:
+    """Compile only a validated SemanticPlan using finite operation templates."""
     if not isinstance(plan, SemanticPlan):
         raise CompileError("invalid semantic plan shape / 无效的语义计划形状")
     if plan.status != PLAN_READY or plan.metric is None:
         raise CompileError("semantic plan is not ready / 语义计划尚不可执行")
-    definition = METRIC_CATALOG.get(plan.metric)
+    selected = profile or load_default_profile()
+    definition = selected.metric_catalog.get(plan.metric)
     if definition is None:
         raise CompileError(f"unsupported metric: {plan.metric} / 不支持的业务指标")
     if not isinstance(plan.filters, dict):
         raise CompileError("invalid filters shape / 无效的过滤条件形状")
-
-    region = _validated_region(plan.filters, definition.allowed_filters)
-    compiler = STRATEGY_COMPILERS.get(definition.compiler_strategy)
-    if compiler is None:
-        raise CompileError(
-            f"unsupported compiler strategy: {definition.compiler_strategy}"
-        )
-    return compiler(definition, region)
+    filters = _validated_filters(plan, definition, selected)
+    operation = definition.operation
+    if isinstance(operation, AggregateOperation):
+        return _compile_aggregate(definition, operation, filters)
+    if isinstance(operation, DifferenceOfSumsOperation):
+        return _compile_difference(definition, operation, filters)
+    raise CompileError(f"unsupported compiler operation: {type(operation).__name__}")

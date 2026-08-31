@@ -95,6 +95,13 @@ def test_setup_revokes_everything_before_granting_only_select():
         sql.startswith(("GRANT INSERT", "GRANT UPDATE", "GRANT DELETE"))
         for sql in statements
     )
+    assert any("CREATE TABLE IF NOT EXISTS expenses" in sql for sql in statements)
+    expense_seed = next(
+        params
+        for sql, params in connector.connection.cursor_instance.calls
+        if sql.startswith("INSERT INTO expenses")
+    )
+    assert len(expense_seed) == 6
     assert grants[-1].startswith("GRANT SELECT ON")
     assert connector.connection.committed is True
     assert connector.connection.cursor_instance.closed is True

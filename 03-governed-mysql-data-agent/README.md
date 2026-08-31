@@ -5,7 +5,8 @@
 接受系统能够确定解释、确定编译、限制权限并验证结果契约的业务问题；其余问题安全地
 返回澄清。
 
-当前冻结版本：`68795ef10b5c54a999eae3cc2e956595030cf1df`
+稳定 v1 基线：`5afe98c157d416a797b473c5bbea21c87cbdfdb0`。v2 在保持下列
+固定评测结果的前提下增加个人数据库 Profile，不修改 Eval Set。
 
 ```text
 Fixed Benchmark: 53 / 56 success
@@ -14,6 +15,26 @@ FALSE_SUCCESS = 0
 UNSAFE_ALLOW = 0
 OVER_BLOCK = 0
 ```
+
+## v2 Personal-Use Data Agent / 个人使用版
+
+v1 已证明治理链和安全边界，v2 解决的是另一个根因：此前要接入个人数据库，必须修改
+`catalog.py`、`semantic.py` 和 `compiler.py`。现在业务知识位于外部、严格校验的 JSON
+Domain Profile；Core Engine 只保留通用解析、有限编译模板、Policy、执行和验证。
+
+v2 当前提供：
+
+- [`profiles/demo.json`](profiles/demo.json)：完整承载 v1 订单领域，且仍是默认 Profile；
+- [`profiles/expenses.json`](profiles/expenses.json)：非 demo 个人支出示例，包含 3 个指标、
+  category 过滤和 6 行种子数据；
+- 离线 Profile 校验与真实 MySQL `INFORMATION_SCHEMA.COLUMNS` 预检；
+- `ask` 简洁答案、`explain` 无执行计划，以及旧位置参数 CLI 兼容模式；
+- JSON 中禁止 raw SQL，只允许 `count/sum/avg/max` 与受控的
+  `difference_of_sums` 两种有限操作结构。
+
+需求和设计决策见
+[`PERSONAL_USE_V2_PRD.md`](../PERSONAL_USE_V2_PRD.md) 与
+[`PERSONAL_USE_V2_DESIGN.md`](../PERSONAL_USE_V2_DESIGN.md)。
 
 ## Why this is not ordinary Text-to-SQL / 为什么不是普通 Text-to-SQL
 
@@ -47,11 +68,11 @@ SemanticPlan、确定性 Compiler 和严格 ResultContract 正是围绕该风险
 ```text
 Question
   ↓
-Governed Resolver
+Validated JSON Domain Profile
+  ↓
+Profile-driven Resolver
   ↓
 SemanticPlan
-  ↓
-Metric Catalog
   ↓
 Deterministic Compiler
   ↓
@@ -70,10 +91,10 @@ Eval / Benchmark / Regression Gate
 
 | Layer | Responsibility / 职责 | Does not own / 不负责 |
 |---|---|---|
-| Governed Resolver | 用批准的 canonical forms、aliases 和组合规则选择 metric；歧义时澄清 | 不生成 SQL，不使用 LLM 猜测语义 |
+| Domain Profile | 外部声明指标语言、有限维度、表列引用与批准操作 | 不含 raw SQL、凭据、Python hook 或任意表达式 |
+| Governed Resolver | 用所选 Profile 的 canonical forms、aliases 和组合规则选择 metric；歧义时澄清 | 不生成 SQL，不使用 LLM 猜测语义 |
 | SemanticPlan | 显式保存 metric、filters、status、reason | 不包含表名、字段名或 SQL |
-| Metric Catalog | 声明业务含义、resolver metadata、ResultContract、白名单 strategy | 不包含 raw SQL 或任意 aggregation/predicate 配置 |
-| Deterministic Compiler | 把 READY plan 编译成固定 SQL 与独立 params | 不读取原始问题，不接受用户选择 SQL 结构 |
+| Deterministic Compiler | 把 READY plan 和已校验操作编译为模板 SQL 与独立 params | 不读取原始问题，不接受 raw SQL 或 Profile 新增执行代码 |
 | AST SQL Policy | 使用 sqlglot MySQL AST 只允许一条只读 SELECT/CTE 查询 | 不证明查询的业务指标语义正确 |
 | QueryExecutor | 执行 CompiledQuery；SQLite/MySQL 共享同一上游合同 | 不做语义解析或策略改写 |
 | DB least privilege | MySQL runtime 账号只有目标数据库 SELECT 权限 | 不替代应用层 AST Policy |
@@ -83,11 +104,58 @@ Eval / Benchmark / Regression Gate
 ### Safety invariants / 安全不变量
 
 1. 只有 `READY` SemanticPlan 可以进入 Compiler。
-2. Catalog 声明语义；只有 Compiler 持有固定 SQL。
+2. Profile 声明语义和有限操作；只有 Compiler 持有 SQL 模板。
 3. filter value 与 SQL 结构分离，并作为 bound params 传递。
 4. 所有编译 SQL 都必须通过 AST Policy。
 5. MySQL Agent runtime 不读取管理员凭据，只使用 SELECT-only 账号。
 6. ResultContract 失败时 fail closed，不返回 verified business evidence。
+
+## Five-minute personal expenses flow / 5 分钟个人支出流程
+
+以下命令在 `03-governed-mysql-data-agent` 目录执行。它们使用 SQLite，不需要 MySQL
+或管理员凭据。
+
+```powershell
+python scripts\init_expenses.py expenses.db
+python -m src.cli validate-profile --profile profiles\expenses.json
+python -m src.cli explain --profile profiles\expenses.json `
+  "average expense for transport"
+python -m src.cli ask --profile profiles\expenses.json `
+  --db-path expenses.db "total expenses for groceries"
+```
+
+POSIX shell 将反斜杠换成 `/`，并移除 PowerShell 的续行反引号。最后一条命令输出
+简洁合同，不显示 SQL：
+
+```json
+{
+  "status": "success",
+  "profile_id": "expenses",
+  "metric": "total_expenses",
+  "filters": {"category": "food"},
+  "value": 47.5,
+  "verified": true,
+  "evidence": {"row_count": 1, "result_key": "total_expenses"}
+}
+```
+
+`explain` 会显示参数化 SQL 和 params，但返回 `executed=false`，不打开数据库。旧命令
+`python -m src.cli "revenue"` 仍选择默认 demo Profile 并保留 v1 完整输出。
+
+### Connect a personal MySQL schema / 接入个人 MySQL
+
+1. 复制 `profiles/expenses.json`，修改 ID、指标语言、有限 filters 和受支持操作；不要放入
+   SQL 或凭据。
+2. 运行 `validate-profile` 做离线结构/引用/标识符检查。
+3. 通过 shell 环境变量配置独立的 SELECT-only 运行账号。
+4. 设置 `DATA_AGENT_EXECUTOR=mysql`，先运行
+   `validate-profile --check-mysql-schema`；缺表或列会在业务查询前以
+   `SCHEMA_MISMATCH` 失败。
+5. 使用 `ask --profile <path> "<question>"` 查询；管理员凭据只供初始化使用，Agent
+   runtime 只读取 `MYSQL_AGENT_*`。
+
+Profile 的完整字段、标识符规则、有限操作和错误合同以 v2 Design 为准。当前不是 schema
+自动发现器：用户需要明确写出想治理的指标，系统也不会因数据库里存在某列就自动开放它。
 
 ## Five-minute SQLite demo / 5 分钟 SQLite 演示
 
@@ -153,7 +221,8 @@ cd 03-governed-mysql-data-agent
 python -m pytest -q
 ```
 
-当前普通测试结果：`172 passed, 1 skipped, 13 subtests passed`。skip 是显式 opt-in
+当前普通测试结果：`203 passed, 1 skipped, 13 subtests passed`，包含原有 v1 回归
+以及新增 Profile/schema/expenses/CLI 覆盖。skip 是显式 opt-in
 的真实 MySQL 模块。
 
 ### Project 00 tests
@@ -199,7 +268,7 @@ Eval Set SHA-256，并断言最终 `53/56`、`SAFE_FAILURE=3`、
 
 CI 的 Benchmark 仍使用确定性 SQLite，同时 job 会创建一次性 MySQL 8.0 service
 container，使用仅限该次运行的测试凭据调用现有 `setup_mysql.py`，再通过
-`acceptance_gate.py --with-mysql` 执行 8-case 真实 MySQL 集成测试。管理员 setup
+`acceptance_gate.py --with-mysql` 执行 10-case 真实 MySQL 集成测试。管理员 setup
 身份与 Agent runtime 身份分离，Agent 仅获得 demo database 的 `SELECT`。本地真实
 MySQL 仍按下节说明显式 opt-in，因为本地环境需要自行准备数据库与凭据。
 
@@ -278,13 +347,13 @@ export RUN_MYSQL_INTEGRATION=1
 python -m pytest -q tests/test_mysql_integration.py
 ```
 
-`setup_mysql.py` 幂等创建 demo schema/seed，重置 Agent 账号权限，并只授予目标数据库
+`setup_mysql.py` 幂等创建 demo 与 expenses schema/seed，重置 Agent 账号权限，并只授予目标数据库
 的 `SELECT`。真实测试直接绕过 AST Policy 尝试 UPDATE、INSERT、DELETE，证明数据库层
 会独立拒绝写入；它还验证 SQLite/MySQL 业务 evidence 一致。
 
 ## Limitations / 工程边界
 
-- Metric Catalog 规模有限，只支持明确批准的业务指标和 filters。
+- 每个 Domain Profile 的指标和 filters 都是显式有限集合；当前不做 schema 自动发现。
 - 三个真实歧义表达保持 `NEED_CLARIFICATION`，不会为了 56/56 强行映射。
 - MySQL integration tests 是 opt-in，需要外部 MySQL 8.0 与管理员 setup 权限。
 - 没有 production secret manager；凭据仅通过环境变量传入。
@@ -298,8 +367,8 @@ python -m pytest -q tests/test_mysql_integration.py
 
 1. 本 README：问题、范围、运行路径与证据。
 2. [`src/agent.py`](src/agent.py)：完整治理链编排与 fail-closed 行为。
-3. [`src/catalog.py`](src/catalog.py)：业务语义、resolver metadata、contracts 和白名单 strategies。
-4. [`src/compiler.py`](src/compiler.py)：SemanticPlan 到固定 SQL/params 的边界。
+3. [`profiles/demo.json`](profiles/demo.json) 与 [`profiles/expenses.json`](profiles/expenses.json)：外部业务语义和批准操作。
+4. [`src/profile.py`](src/profile.py) 与 [`src/compiler.py`](src/compiler.py)：严格校验以及 SemanticPlan 到有限模板 SQL/params 的边界。
 5. [`../00-agent-eval-harness/cases/03_integration_cases.json`](../00-agent-eval-harness/cases/03_integration_cases.json)：固定 56-case 外部评测合同。
 
 补充安全边界可查看 [`src/verification.py`](src/verification.py) 与

@@ -1,0 +1,267 @@
+{
+  "profile_version": 1,
+  "id": "demo",
+  "description": "Stable orders, payments, and refunds demo domain",
+  "language": {
+    "token_normalization": {
+      "amounts": "amount",
+      "baskets": "basket",
+      "orders": "order",
+      "payments": "payment",
+      "purchases": "purchase",
+      "refunds": "refund",
+      "sales": "sale",
+      "values": "value"
+    },
+    "scope_ambiguity_markers": ["一下"],
+    "guard_rules": [
+      {
+        "id": "derived_modifier",
+        "reason": "unsupported derived metric modifier / 不支持的派生指标修饰词",
+        "all_features": [],
+        "any_features": ["before", "forecast", "growth", "margin", "rate"]
+      },
+      {
+        "id": "per_unit",
+        "reason": "unsupported per-unit semantics / 不支持的单位化语义",
+        "all_features": ["per"],
+        "any_features": []
+      },
+      {
+        "id": "turnover",
+        "reason": "turnover meaning requires clarification / turnover 含义需要澄清",
+        "all_features": ["turnover"],
+        "any_features": []
+      },
+      {
+        "id": "money_made",
+        "reason": "money-made meaning requires clarification / money made 含义需要澄清",
+        "all_features": ["money"],
+        "any_features": ["make", "made"]
+      },
+      {
+        "id": "fulfilled_state",
+        "reason": "fulfilled state meaning requires clarification / fulfilled 状态含义需要澄清",
+        "all_features": ["fulfilled"],
+        "any_features": ["order", "purchase"]
+      },
+      {
+        "id": "negated_metric",
+        "reason": "negated metric semantics require clarification / 否定指标语义需要澄清",
+        "all_features": [],
+        "any_features": ["exclude", "excluding", "not", "without"]
+      },
+      {
+        "id": "payment_refund_count",
+        "reason": "payment/refund count is not a governed metric / 付款或退款计数不是受治理指标",
+        "all_features": ["__count_intent__"],
+        "any_features": ["payment", "refund"]
+      },
+      {
+        "id": "pending_payment_refund",
+        "reason": "pending payment/refund amount is not a governed metric / 待处理付款或退款金额不是受治理指标",
+        "all_features": ["pending"],
+        "any_features": ["payment", "refund"]
+      },
+      {
+        "id": "failed_payment_refund",
+        "reason": "failed payment/refund amount is not a governed metric / 失败付款或退款金额不是受治理指标",
+        "all_features": ["failed"],
+        "any_features": ["payment", "refund"]
+      },
+      {
+        "id": "conflicting_order_states",
+        "reason": "conflicting order states require clarification / 冲突的订单状态需要澄清",
+        "all_features": ["pending", "order"],
+        "any_features": ["completed", "finished"],
+        "ignore_if_dimensions": ["status"]
+      }
+    ]
+  },
+  "dimensions": [
+    {
+      "id": "region",
+      "phrases": {
+        "east": "east",
+        "west": "west",
+        "north": "north",
+        "south": "south"
+      },
+      "adjacent_labels": ["region"]
+    },
+    {
+      "id": "status",
+      "phrases": {},
+      "adjacent_labels": ["status"]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "revenue",
+      "meaning": "Completed payment amount minus completed refunds / 已完成付款减已完成退款",
+      "canonical_forms": ["revenue"],
+      "synonyms": ["net revenue"],
+      "cjk_aliases": ["收入", "营收"],
+      "composition_patterns": [
+        [["net"], ["sale"], ["refund"], ["after", "following", "__net_of__"]]
+      ],
+      "allowed_dimensions": ["region"],
+      "result_key": {"mode": "dimension_value_prefix"},
+      "operation": {
+        "type": "difference_of_sums",
+        "left": {
+          "source": {"table": "payments", "alias": "p"},
+          "column": "amount",
+          "fixed_predicates": [{"column": "status", "value": "completed"}]
+        },
+        "right": {
+          "source": {"table": "refunds", "alias": "r"},
+          "column": "amount",
+          "fixed_predicates": [{"column": "status", "value": "completed"}]
+        },
+        "round_digits": 2,
+        "filter_joins": {
+          "region": {
+            "table": "orders",
+            "alias": "o",
+            "value_column": "region",
+            "left_join": {"source_column": "order_id", "target_column": "id"},
+            "right_join": {"source_column": "order_id", "target_column": "id"}
+          }
+        }
+      }
+    },
+    {
+      "id": "completed_orders",
+      "meaning": "Count of completed orders / 已完成订单数量",
+      "canonical_forms": ["completed_orders", "completed orders"],
+      "synonyms": ["completed order count"],
+      "cjk_aliases": ["订单数"],
+      "composition_patterns": [
+        [["completed", "finished"], ["order"], ["__count_intent__"]]
+      ],
+      "allowed_dimensions": ["region"],
+      "result_key": {"mode": "dimension_value_prefix"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "count",
+        "source": {"table": "orders", "alias": "o"},
+        "column": null,
+        "round_digits": null,
+        "coalesce_zero": false,
+        "fixed_predicates": [{"column": "status", "value": "completed"}],
+        "filter_bindings": {"region": {"column": "region"}}
+      }
+    },
+    {
+      "id": "pending_orders",
+      "meaning": "Count of pending orders / 待处理订单数量",
+      "canonical_forms": ["pending_orders", "pending orders"],
+      "synonyms": ["pending order count", "number of pending orders"],
+      "cjk_aliases": [],
+      "composition_patterns": [
+        [["pending"], ["order"], ["__count_intent__"]]
+      ],
+      "allowed_dimensions": [],
+      "result_key": {"mode": "metric"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "count",
+        "source": {"table": "orders", "alias": "o"},
+        "column": null,
+        "round_digits": null,
+        "coalesce_zero": false,
+        "fixed_predicates": [{"column": "status", "value": "pending"}],
+        "filter_bindings": {}
+      }
+    },
+    {
+      "id": "max_completed_order_total",
+      "meaning": "Maximum total amount among completed orders / 已完成订单中的最高订单总额",
+      "canonical_forms": ["max_completed_order_total"],
+      "synonyms": [],
+      "cjk_aliases": [],
+      "composition_patterns": [
+        [["highest", "maximum", "largest", "max"], ["completed", "finished"], ["order"], ["total", "amount", "value"]]
+      ],
+      "allowed_dimensions": [],
+      "result_key": {"mode": "metric"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "max",
+        "source": {"table": "orders", "alias": "o"},
+        "column": "total",
+        "round_digits": null,
+        "coalesce_zero": false,
+        "fixed_predicates": [{"column": "status", "value": "completed"}],
+        "filter_bindings": {}
+      }
+    },
+    {
+      "id": "avg_order_value",
+      "meaning": "Average total for completed orders / 已完成订单平均客单价",
+      "canonical_forms": ["avg_order_value", "average order value"],
+      "synonyms": ["aov"],
+      "cjk_aliases": ["客单价"],
+      "composition_patterns": [
+        [["avg", "average", "mean"], ["order", "basket"], ["value", "amount"]]
+      ],
+      "allowed_dimensions": ["region"],
+      "result_key": {"mode": "dimension_value_prefix"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "avg",
+        "source": {"table": "orders", "alias": "o"},
+        "column": "total",
+        "round_digits": 2,
+        "coalesce_zero": false,
+        "fixed_predicates": [{"column": "status", "value": "completed"}],
+        "filter_bindings": {"region": {"column": "region"}}
+      }
+    },
+    {
+      "id": "completed_payments",
+      "meaning": "Total amount of completed payments / 已完成付款总额",
+      "canonical_forms": ["completed_payments"],
+      "synonyms": [],
+      "cjk_aliases": [],
+      "composition_patterns": [
+        [["completed"], ["payment"], ["gross", "total", "amount", "sum"]]
+      ],
+      "allowed_dimensions": [],
+      "result_key": {"mode": "metric"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "sum",
+        "source": {"table": "payments", "alias": "p"},
+        "column": "amount",
+        "round_digits": 2,
+        "coalesce_zero": true,
+        "fixed_predicates": [{"column": "status", "value": "completed"}],
+        "filter_bindings": {}
+      }
+    },
+    {
+      "id": "completed_refunds",
+      "meaning": "Total amount of completed refunds / 已完成退款总额",
+      "canonical_forms": ["completed_refunds"],
+      "synonyms": [],
+      "cjk_aliases": [],
+      "composition_patterns": [
+        [["completed"], ["refund"], ["total", "amount", "sum"]]
+      ],
+      "allowed_dimensions": [],
+      "result_key": {"mode": "metric"},
+      "operation": {
+        "type": "aggregate",
+        "aggregate": "sum",
+        "source": {"table": "refunds", "alias": "r"},
+        "column": "amount",
+        "round_digits": 2,
+        "coalesce_zero": true,
+        "fixed_predicates": [{"column": "status", "value": "completed"}],
+        "filter_bindings": {}
+      }
+    }
+  ]
+}

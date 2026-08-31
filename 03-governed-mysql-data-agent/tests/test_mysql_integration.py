@@ -13,7 +13,7 @@ mysql_connector = pytest.importorskip("mysql.connector")
 
 from src.agent import DataAgent
 from src.compiler import CompiledQuery
-from src.demo import initialize_demo
+from src.demo import initialize_demo, initialize_expenses
 from src.executor import (
     ExecutionError,
     MySQLConfig,
@@ -21,6 +21,8 @@ from src.executor import (
     SQLiteExecutor,
 )
 from src.verification import ResultContract
+from src.profile import load_default_profile, load_profile
+from src.schema_validation import validate_mysql_schema
 
 
 @pytest.fixture(scope="module")
@@ -91,6 +93,21 @@ def test_read_only_user_can_select_and_has_only_usage_plus_select(mysql_config):
     )
 
 
+def test_demo_and_personal_profiles_match_real_mysql_schema(mysql_config):
+    connection = _direct_connection(mysql_config)
+    try:
+        validate_mysql_schema(
+            load_default_profile(), connection, mysql_config.database
+        )
+        validate_mysql_schema(
+            load_profile("profiles/expenses.json"),
+            connection,
+            mysql_config.database,
+        )
+    finally:
+        connection.close()
+
+
 @pytest.mark.parametrize(
     ("sql", "params"),
     [
@@ -138,4 +155,29 @@ def test_sqlite_and_mysql_return_identical_business_evidence(
 
         assert mysql_result["status"] == "OK"
         assert mysql_result["evidence"] == sqlite_result["evidence"]
+        assert mysql_result["verified"] is True
+
+
+def test_expenses_profile_matches_sqlite_for_three_metrics_and_filter(
+    mysql_executor, tmp_path
+):
+    profile = load_profile("profiles/expenses.json")
+    sqlite_path = initialize_expenses(tmp_path / "expenses-parity.db")
+    sqlite_agent = DataAgent(
+        executor=SQLiteExecutor(sqlite_path), profile=profile
+    )
+    mysql_agent = DataAgent(executor=mysql_executor, profile=profile)
+
+    for question in (
+        "total expenses",
+        "how many expenses",
+        "average expense",
+        "total expenses for groceries",
+    ):
+        sqlite_result = sqlite_agent.answer(question)
+        mysql_result = mysql_agent.answer(question)
+
+        assert mysql_result["status"] == "OK"
+        assert mysql_result["evidence"] == sqlite_result["evidence"]
+        assert mysql_result["params"] == sqlite_result["params"]
         assert mysql_result["verified"] is True

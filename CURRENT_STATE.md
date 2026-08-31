@@ -1,9 +1,11 @@
 # Current Repository State
 
 Verified on: 2026-08-31 (Asia/Shanghai)
-Frozen feature commit: `68795ef10b5c54a999eae3cc2e956595030cf1df`
-Evidence closure commit: `67986697a55537f4ebc463425c886fa65228c5d2`
-Hosted evidence: [CI Regression Gate run 33362031707](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33362031707)
+Stable v1 base: `5afe98c157d416a797b473c5bbea21c87cbdfdb0`.
+
+v2 implementation branch: `codex/v2-personal-use`.
+
+Stable v1 hosted evidence: [CI Regression Gate run 33362492753](https://github.com/1yu-an/evaluation-first-governed-data-agent/actions/runs/33362492753)
 
 This file is a concise status snapshot, not a second project README. The
 reviewer-facing source of truth for project 03 is
@@ -11,18 +13,20 @@ reviewer-facing source of truth for project 03 is
 
 ## Feature status
 
-Project 03 feature development is frozen. The current scope is an
-evaluation-first governed data-agent prototype with deterministic semantics,
-fail-closed behavior, AST SQL policy, least-privilege execution, strict result
-contracts, and a fixed external Benchmark.
+The stable v1 behavior is frozen. v2 adds a personal-use configuration layer:
+strict external JSON Domain Profiles, generic finite aggregate compilation,
+MySQL schema preflight, a concise ask CLI, and no-execution explain mode. The
+existing deterministic semantics, fail-closed behavior, AST SQL policy,
+least-privilege execution, strict result contracts, and fixed external
+Benchmark remain the compatibility gate.
 
 ## Final architecture
 
 ```text
 Question
-→ Governed Resolver
+→ Validated JSON Domain Profile
+→ Profile-driven Resolver
 → SemanticPlan
-→ Metric Catalog
 → Deterministic Compiler
 → AST SQL Policy
 → QueryExecutor
@@ -34,7 +38,7 @@ Question
 
 ## Verified results
 
-- Project 03 ordinary suite: `172 passed, 1 skipped, 13 subtests passed`.
+- Project 03 ordinary suite: `203 passed, 1 skipped, 13 subtests passed`.
 - Project 00 suite: `59 passed`.
 - Repository structure/source validation: passed.
 - Repository audit tests: `17 passed`; deterministic audit: `PASS` with zero
@@ -53,13 +57,15 @@ Question
 
 ## MySQL safety evidence
 
-The hosted workflow provisioned disposable MySQL `8.0.46` and passed the real
-integration suite `8 / 8` on the evidence closure commit. `setup_mysql.py` ran
-as the admin/setup identity; the distinct `data_agent_ro` runtime account had
-only `USAGE` plus `SELECT` on its target database. Direct UPDATE, INSERT, and
-DELETE attempts were rejected by MySQL independently of the application AST
-Policy. SQLite and MySQL evidence matched for all governed queries in the
-parity test.
+Local v2 acceptance used an isolated disposable MySQL Community Server
+`8.0.46` on port 3307 and passed the real integration suite `10 / 10`.
+`setup_mysql.py` ran as the admin/setup identity; the distinct `data_agent_ro`
+runtime account had only `USAGE` plus `SELECT` on its target database. Direct
+UPDATE, INSERT, and DELETE attempts were rejected by MySQL independently of the
+application AST Policy. Both demo and expenses Profiles passed
+`INFORMATION_SCHEMA` validation, and SQLite/MySQL evidence matched for the
+three expenses metrics plus category filtering. The temporary instance and
+data directory were stopped and removed after the run.
 
 Local MySQL remains opt-in; hosted CI runs it without repository secrets. The
 default demo and fixed Benchmark continue to use deterministic SQLite.
@@ -91,9 +97,9 @@ declared final governed result, not an unfinished target on the way to 56/56.
 | `07e8fdb` | add governed pending-orders metric |
 | `68795ef` | add governed maximum completed-order metric; freeze features |
 
-## Freeze declaration
+## Compatibility and scope declaration
 
-Do not add metrics, broaden ambiguous resolver mappings, modify the fixed Eval
-Set, or pursue 56/56 as packaging work. Subsequent changes should be limited to
-delivery documentation, dependency closure, reproducibility, or corrections to
-evidence about the frozen implementation.
+Do not broaden the default demo resolver, modify the fixed Eval Set, or pursue
+56/56 as v2 packaging work. New personal metrics belong in external Profiles,
+not Core source. Web UI, LLM semantic parsing, RAG, agent frameworks, arbitrary
+SQL, and schema auto-discovery remain outside the v2 MVP.
