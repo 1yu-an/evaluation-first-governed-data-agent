@@ -40,7 +40,7 @@ def test_snapshot_accepts_exact_or_superset_expenses_schema():
 
     validate_schema_snapshot(
         profile,
-        {"expenses": {"id", "amount", "category", "merchant"}},
+        {"expenses": {"id", "amount", "category", "merchant", "spent_on"}},
     )
 
 

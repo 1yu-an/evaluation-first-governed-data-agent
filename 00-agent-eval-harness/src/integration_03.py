@@ -7,6 +7,7 @@ import json
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Protocol
@@ -73,6 +74,40 @@ class GovernedMySQLRuntime:
 
     def evaluate_sql_policy(self, sql: str) -> Mapping[str, Any]:
         return self._evaluate_sql_policy(sql)
+
+
+class GovernedExpensesRuntime:
+    """External V3 caller using the real expenses Profile and SQLite fixture."""
+
+    def __init__(
+        self,
+        project_root: str | Path,
+        db_path: str | Path,
+        reference_date: date,
+    ):
+        if not isinstance(reference_date, date):
+            raise ValueError("reference_date must be a date")
+        root = Path(project_root)
+        package_name, _ = _load_package(root)
+        agent_module = importlib.import_module(f"{package_name}.agent")
+        profile_module = importlib.import_module(f"{package_name}.profile")
+        demo_module = importlib.import_module(f"{package_name}.demo")
+        profile = profile_module.load_profile(
+            root / "profiles" / "expenses.json"
+        )
+        self._agent = agent_module.DataAgent(
+            str(db_path),
+            profile=profile,
+            reference_date=reference_date,
+        )
+        self._initialize_expenses = demo_module.initialize_expenses
+        self.db_path = Path(db_path)
+
+    def initialize_expenses(self) -> Path:
+        return self._initialize_expenses(self.db_path)
+
+    def answer(self, question: str) -> Mapping[str, Any]:
+        return self._agent.answer(question)
 
 
 def load_integration_cases(path: str | Path) -> list[dict[str, Any]]:

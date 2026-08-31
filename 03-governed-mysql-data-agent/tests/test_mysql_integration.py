@@ -1,4 +1,5 @@
 import os
+from datetime import date
 
 import pytest
 
@@ -180,4 +181,43 @@ def test_expenses_profile_matches_sqlite_for_three_metrics_and_filter(
         assert mysql_result["status"] == "OK"
         assert mysql_result["evidence"] == sqlite_result["evidence"]
         assert mysql_result["params"] == sqlite_result["params"]
+        assert mysql_result["verified"] is True
+
+
+def test_v3_time_grouping_and_ranking_match_sqlite(
+    mysql_executor, tmp_path
+):
+    profile = load_profile("profiles/expenses.json")
+    reference_date = date(2026, 8, 31)
+    sqlite_path = initialize_expenses(tmp_path / "v3-parity.db")
+    sqlite_agent = DataAgent(
+        executor=SQLiteExecutor(sqlite_path),
+        profile=profile,
+        reference_date=reference_date,
+    )
+    mysql_agent = DataAgent(
+        executor=mysql_executor,
+        profile=profile,
+        reference_date=reference_date,
+    )
+
+    for question in (
+        "total expenses this month",
+        "total expenses last month",
+        "expense count between 2026-08-03 and 2026-08-10",
+        "total expenses by category",
+        "average expense by category",
+        "top 2 expense categories",
+        "which category has the lowest total expenses?",
+        "top 2 categories by average expense",
+    ):
+        sqlite_result = sqlite_agent.answer(question)
+        mysql_result = mysql_agent.answer(question)
+
+        assert sqlite_result["status"] == "OK"
+        assert mysql_result["status"] == "OK"
+        assert mysql_result["result_type"] == sqlite_result["result_type"]
+        assert mysql_result["evidence"] == sqlite_result["evidence"]
+        assert mysql_result["params"] == sqlite_result["params"]
+        assert mysql_result["semantic_plan"] == sqlite_result["semantic_plan"]
         assert mysql_result["verified"] is True

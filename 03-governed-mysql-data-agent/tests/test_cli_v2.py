@@ -17,7 +17,7 @@ def test_validate_profile_command_is_offline_and_actionable(capsys):
     assert result == {
         "status": "valid",
         "profile_id": "expenses",
-        "required_schema": {"expenses": ["amount", "category"]},
+        "required_schema": {"expenses": ["amount", "category", "spent_on"]},
         "mysql_schema_checked": False,
     }
 

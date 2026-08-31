@@ -18,6 +18,9 @@
    Profile/Core 边界与安全决策。
 4. [V2.2 Hardening PRD](V2_2_HARDENING_PRD.md) 与
    [Report](V2_2_HARDENING_REPORT.md)：真实用户摩擦、候选 ROI 排序、选择边界与完整验收证据。
+5. [V3 Analytics PRD](V3_ANALYTICS_PRD.md) 与
+   [Design](V3_ANALYTICS_DESIGN.md)：由 38 个真实问题驱动的时间过滤、分组、
+   Top-N、多行验证与独立安全评测设计。
 
 03 README 是该项目面向 reviewer 的权威入口；`CURRENT_STATE.md` 只记录简洁的
 仓库状态快照。
@@ -74,7 +77,8 @@ audit itself, its own orchestration tests, Python tests for projects
 00/02/03/04/05, Maven tests for projects 01/06, and the existing fixed 56-case
 Project 03 regression Benchmark. It returns exit code 0 and prints
 `FINAL RESULT: PASS` only when every required check passes. A failed test,
-audit, or Benchmark, a command startup error, or missing Java/Maven produces a
+audit, either the fixed Benchmark or independent V3 Analytics Gate, a command
+startup error, or missing Java/Maven produces a
 non-zero exit code. Prerequisites are Python 3.12, Java 21, and Maven; install
 Python dependencies with `python -m pip install -r requirements-dev.txt`.
 

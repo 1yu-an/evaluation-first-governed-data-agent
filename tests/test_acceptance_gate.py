@@ -70,6 +70,18 @@ def test_benchmark_failure_fails_gate():
     assert exit_code == 1
 
 
+def test_build_checks_includes_independent_v3_analytics_gate(tmp_path):
+    checks = {check.name: check for check in build_checks(root=tmp_path)}
+
+    assert checks["03 V3 Analytics Gate"].command[-2:] == (
+        "src.v3_analytics_benchmark",
+        "--gate",
+    )
+    assert checks["03 V3 Analytics Gate"].cwd == (
+        tmp_path / "00-agent-eval-harness"
+    )
+
+
 def test_command_start_error_fails_closed():
     def unavailable(check):
         raise FileNotFoundError("not installed")

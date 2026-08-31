@@ -44,6 +44,13 @@ class PolicyTest(unittest.TestCase):
     def test_union_of_selects_is_one_read_only_query(self):
         self.assert_allowed("SELECT 1 AS value UNION SELECT 2 AS value")
 
+    def test_governed_group_order_and_limit_shape_is_allowed(self):
+        self.assert_allowed(
+            "SELECT category, SUM(amount) AS total_expenses FROM expenses "
+            "GROUP BY category ORDER BY total_expenses DESC, category ASC "
+            "LIMIT 3"
+        )
+
     def test_unseen_write_words_in_literals_and_identifiers_are_allowed(self):
         self.assert_allowed(
             "SELECT 'DROP TABLE audit_log' AS note, `delete` "
@@ -110,6 +117,13 @@ class PolicyTest(unittest.TestCase):
     def test_locking_select_is_not_treated_as_read_only(self):
         self.assert_blocked(
             "SELECT * FROM orders FOR UPDATE",
+            UNSUPPORTED_STATEMENT,
+        )
+
+    def test_grouped_query_cannot_bypass_locking_read_rejection(self):
+        self.assert_blocked(
+            "SELECT category, SUM(amount) FROM expenses GROUP BY category "
+            "ORDER BY SUM(amount) DESC LIMIT 3 FOR UPDATE",
             UNSUPPORTED_STATEMENT,
         )
 

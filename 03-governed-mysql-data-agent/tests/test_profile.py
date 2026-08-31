@@ -32,13 +32,20 @@ def test_default_and_expenses_profiles_load_as_immutable_catalogs():
         "expense_count",
         "average_expense",
     }
+    assert expenses.intent_defaults == {
+        "group_by": "total_expenses",
+        "ranking": "total_expenses",
+    }
+    assert expenses.dimensions["category"].groupable is True
+    assert expenses.dimensions["date"].dimension_type == "date"
+    assert expenses.dimensions["date"].column == "spent_on"
     with pytest.raises(TypeError):
         expenses.metric_catalog["invented"] = expenses.metric_definitions[0]
 
 
 def test_required_schema_is_derived_from_operations_not_duplicated_config():
     assert required_schema(load_profile(EXPENSES_PATH)) == {
-        "expenses": frozenset({"amount", "category"})
+        "expenses": frozenset({"amount", "category", "spent_on"})
     }
     assert required_schema(load_default_profile()) == {
         "orders": frozenset({"id", "status", "total", "region"}),
@@ -131,3 +138,42 @@ def test_invalid_aggregate_lists_supported_repair_values():
     assert "supported values: avg, count, max, sum" in message
     assert captured.value.reason_code == "profile_validation_failed"
     assert captured.value.hint
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (
+            lambda data: data["dimensions"][0].update(column="category;drop"),
+            "unsafe identifier",
+        ),
+        (
+            lambda data: data["dimensions"][3].update(type="sql_date"),
+            "unsupported dimension type",
+        ),
+        (
+            lambda data: data["dimensions"][3].update(groupable=True),
+            "requires a categorical dimension",
+        ),
+        (
+            lambda data: data["metrics"][0].update(allowed_group_by=["date"]),
+            "not groupable",
+        ),
+        (
+            lambda data: data["metrics"][1].update(default_intents=["ranking"]),
+            "already owned",
+        ),
+        (
+            lambda data: data["metrics"][0].update(raw_group_by="category"),
+            "unknown field",
+        ),
+    ],
+)
+def test_v3_profile_extensions_reject_unsafe_or_inconsistent_data(
+    mutation, message
+):
+    data = _expenses_data()
+    mutation(data)
+
+    with pytest.raises(ProfileValidationError, match=message):
+        validate_profile_data(data)

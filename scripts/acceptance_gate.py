@@ -97,6 +97,16 @@ def build_checks(with_mysql: bool = False, root: Path = ROOT) -> list[Check]:
             ),
             root / "00-agent-eval-harness",
         ),
+        Check(
+            "03 V3 Analytics Gate",
+            (
+                python,
+                "-m",
+                "src.v3_analytics_benchmark",
+                "--gate",
+            ),
+            root / "00-agent-eval-harness",
+        ),
     ]
     if with_mysql:
         checks.append(

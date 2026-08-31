@@ -77,6 +77,10 @@ class DimensionDefinition:
     dimension_id: str
     phrases: Mapping[str, str]
     adjacent_labels: tuple[str, ...] = ()
+    dimension_type: str = "categorical"
+    column: str | None = None
+    filterable: bool = True
+    groupable: bool = False
 
     @property
     def allowed_values(self) -> frozenset[str]:
@@ -160,6 +164,8 @@ class MetricDefinition:
     operation: MetricOperation
     allowed_filters: frozenset[str]
     result_key: ResultKeyDefinition
+    allowed_group_by: frozenset[str] = frozenset()
+    default_intents: frozenset[str] = frozenset()
 
     @property
     def compiler_strategy(self) -> str:
@@ -176,6 +182,7 @@ class DomainProfile:
     dimensions: Mapping[str, DimensionDefinition]
     metric_definitions: tuple[MetricDefinition, ...]
     metric_catalog: Mapping[str, MetricDefinition]
+    intent_defaults: Mapping[str, str]
 
 
 def _object(
@@ -227,6 +234,12 @@ def _mapping(value: Any, path: str) -> Mapping[str, str]:
             raise ProfileValidationError(f"{path}.{phrase}: duplicate phrase")
         result[phrase] = _string(item, f"{path}.{key}")
     return MappingProxyType(result)
+
+
+def _boolean(value: Any, path: str) -> bool:
+    if not isinstance(value, bool):
+        raise ProfileValidationError(f"{path}: expected boolean")
+    return value
 
 
 def _source(value: Any, path: str) -> Source:
@@ -353,7 +366,13 @@ def _dimensions(value: Any, path: str) -> Mapping[str, DimensionDefinition]:
             item,
             item_path,
             required={"id", "phrases"},
-            optional={"adjacent_labels"},
+            optional={
+                "adjacent_labels",
+                "type",
+                "column",
+                "filterable",
+                "groupable",
+            },
         )
         dimension_id = _string(data["id"], f"{item_path}.id", identifier=True)
         if dimension_id in result:
@@ -366,12 +385,52 @@ def _dimensions(value: Any, path: str) -> Mapping[str, DimensionDefinition]:
                 raise ProfileValidationError(
                     f"{item_path}.phrases.{phrase}: unsafe database value {db_value!r}"
                 )
+        dimension_type = _string(
+            data.get("type", "categorical"), f"{item_path}.type"
+        ).lower()
+        if dimension_type not in {"categorical", "date"}:
+            raise ProfileValidationError(
+                f"{item_path}.type: unsupported dimension type {dimension_type!r}; "
+                "supported values: categorical, date"
+            )
+        column_value = data.get("column")
+        column = (
+            None
+            if column_value is None
+            else _string(column_value, f"{item_path}.column", identifier=True)
+        )
+        filterable = _boolean(
+            data.get("filterable", True), f"{item_path}.filterable"
+        )
+        groupable = _boolean(
+            data.get("groupable", False), f"{item_path}.groupable"
+        )
+        if groupable and (column is None or dimension_type != "categorical"):
+            raise ProfileValidationError(
+                f"{item_path}.groupable: requires a categorical dimension with a column"
+            )
+        if dimension_type == "date":
+            issues = []
+            if column is None:
+                issues.append(f"{item_path}.column: date dimension requires a column")
+            if not filterable:
+                issues.append(f"{item_path}.filterable: date dimension must be filterable")
+            if groupable:
+                issues.append(f"{item_path}.groupable: date grouping is not supported")
+            if phrases:
+                issues.append(f"{item_path}.phrases: date dimension requires an empty object")
+            if issues:
+                raise ProfileValidationError(issues)
         result[dimension_id] = DimensionDefinition(
             dimension_id=dimension_id,
             phrases=phrases,
             adjacent_labels=_string_list(
                 data.get("adjacent_labels", []), f"{item_path}.adjacent_labels"
             ),
+            dimension_type=dimension_type,
+            column=column,
+            filterable=filterable,
+            groupable=groupable,
         )
     return MappingProxyType(result)
 
@@ -537,6 +596,7 @@ def _metrics(
     result = []
     metric_ids = set()
     explicit_forms: dict[str, str] = {}
+    intent_defaults: dict[str, str] = {}
     for index, item in enumerate(value):
         item_path = f"{path}[{index}]"
         data = _object(
@@ -553,6 +613,7 @@ def _metrics(
                 "result_key",
                 "operation",
             },
+            optional={"allowed_group_by", "default_intents"},
         )
         metric_id = _string(data["id"], f"{item_path}.id", identifier=True)
         if metric_id in metric_ids:
@@ -610,6 +671,54 @@ def _metrics(
             raise ProfileValidationError(
                 f"{item_path}.operation: filter definitions must exactly match allowed_dimensions"
             )
+        allowed_group_by = frozenset(
+            _string_list(
+                data.get("allowed_group_by", []),
+                f"{item_path}.allowed_group_by",
+            )
+        )
+        if not allowed_group_by.issubset(allowed_filters):
+            raise ProfileValidationError(
+                f"{item_path}.allowed_group_by: must be a subset of allowed_dimensions"
+            )
+        for dimension_id in sorted(allowed_group_by):
+            dimension = dimensions[dimension_id]
+            if not dimension.groupable or dimension.column is None:
+                raise ProfileValidationError(
+                    f"{item_path}.allowed_group_by: dimension {dimension_id!r} is not groupable"
+                )
+            if not isinstance(operation, AggregateOperation):
+                raise ProfileValidationError(
+                    f"{item_path}.allowed_group_by: grouped metrics require aggregate operation"
+                )
+            binding = operation.filter_bindings.get(dimension_id)
+            if binding is None or binding.column != dimension.column:
+                raise ProfileValidationError(
+                    f"{item_path}.allowed_group_by: dimension column must match operation binding"
+                )
+        default_intents = frozenset(
+            item.lower()
+            for item in _string_list(
+                data.get("default_intents", []),
+                f"{item_path}.default_intents",
+            )
+        )
+        unknown_intents = sorted(default_intents - {"group_by", "ranking"})
+        if unknown_intents:
+            raise ProfileValidationError(
+                f"{item_path}.default_intents: unsupported intents {unknown_intents}"
+            )
+        if default_intents and not allowed_group_by:
+            raise ProfileValidationError(
+                f"{item_path}.default_intents: default analytics metric must support grouping"
+            )
+        for intent in sorted(default_intents):
+            previous = intent_defaults.get(intent)
+            if previous is not None:
+                raise ProfileValidationError(
+                    f"{item_path}.default_intents: {intent!r} is already owned by metric {previous!r}"
+                )
+            intent_defaults[intent] = metric_id
         result.append(
             MetricDefinition(
                 metric_id=metric_id,
@@ -624,6 +733,8 @@ def _metrics(
                 operation=operation,
                 allowed_filters=allowed_filters,
                 result_key=ResultKeyDefinition(result_key_mode),
+                allowed_group_by=allowed_group_by,
+                default_intents=default_intents,
             )
         )
     return tuple(result)
@@ -666,6 +777,13 @@ def validate_profile_data(data: Any, source: str = "<memory>") -> DomainProfile:
         dimensions=dimensions,
         metric_definitions=metrics,
         metric_catalog=MappingProxyType({item.metric_id: item for item in metrics}),
+        intent_defaults=MappingProxyType(
+            {
+                intent: metric.metric_id
+                for metric in metrics
+                for intent in metric.default_intents
+            }
+        ),
     )
 
 

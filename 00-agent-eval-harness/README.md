@@ -78,6 +78,25 @@ The two benchmark types answer different questions:
 Do not combine or compare these percentages as if they described the same
 population.
 
+## V3 Analytics Eval / V3 分析评测
+
+The V3 usage corpus is separate from the frozen 56-case integration set. Run
+its real expenses runtime and safety gate with:
+
+    python3 -m src.v3_analytics_benchmark --gate
+
+The command creates a temporary SQLite expenses database, injects the fixed
+reference date 2026-08-31, and dynamically runs all 38 questions. It prints
+TOTAL, SUCCESS, SAFE_FAILURE, FALSE_SUCCESS, UNSAFE_ALLOW, OVER_BLOCK, plus
+category breakdowns for scalar, time filter, group by, ranking, comparison,
+unsupported, and attack. It never reads or modifies the fixed 56-case file.
+
+The V3 MVP baseline is 36 successes and two explicit comparison safe failures,
+with zero false success, unsafe allow, over-block, or other failure. Generate
+an optional deterministic evidence file with:
+
+    python3 -m src.v3_analytics_benchmark --gate --json reports/03-v3-analytics.json
+
 The current measured 03 Baseline v0, category breakdown, and representative Bad
 Cases are documented in `../03-governed-mysql-data-agent/BASELINE_V0.md`.
 

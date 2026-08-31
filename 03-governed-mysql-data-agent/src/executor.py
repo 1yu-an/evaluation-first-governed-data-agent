@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .compiler import CompiledQuery
-from .verification import EXACTLY_ONE
+from .verification import EXACTLY_ONE, GROUPED
 
 
 class ExecutionError(RuntimeError):
@@ -18,7 +18,9 @@ class ExecutionError(RuntimeError):
 class QueryExecutor(Protocol):
     name: str
 
-    def execute(self, query: CompiledQuery) -> dict[str, Any]: ...
+    def execute(
+        self, query: CompiledQuery
+    ) -> dict[str, Any] | list[dict[str, Any]]: ...
 
 
 def _fetch_scalar_row(cursor: Any, query: CompiledQuery) -> Any:
@@ -39,23 +41,54 @@ def _fetch_scalar_row(cursor: Any, query: CompiledQuery) -> Any:
     return row
 
 
+def _fetch_grouped_rows(cursor: Any, query: CompiledQuery) -> list[Any]:
+    contract = query.result_contract
+    if contract.cardinality != GROUPED or contract.max_rows is None:
+        raise ExecutionError(
+            "unsupported result cardinality / 不支持的结果基数"
+        )
+    expected_rows = contract.requested_limit or contract.max_rows
+    overflow_probe = expected_rows + 1
+    rows = []
+    while len(rows) < overflow_probe:
+        row = cursor.fetchone()
+        if row is None:
+            break
+        rows.append(row)
+    return rows
+
+
+def _fetch_rows(cursor: Any, query: CompiledQuery) -> Any:
+    if query.result_contract.cardinality == EXACTLY_ONE:
+        return _fetch_scalar_row(cursor, query)
+    if query.result_contract.cardinality == GROUPED:
+        return _fetch_grouped_rows(cursor, query)
+    raise ExecutionError(
+        "unsupported result cardinality / 不支持的结果基数"
+    )
+
+
 class SQLiteExecutor:
     name = "sqlite"
 
     def __init__(self, db_path: str | Path):
         self.db_path = db_path
 
-    def execute(self, query: CompiledQuery) -> dict[str, Any]:
+    def execute(
+        self, query: CompiledQuery
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         try:
             with closing(sqlite3.connect(self.db_path)) as connection:
                 connection.row_factory = sqlite3.Row
                 cursor = connection.execute(query.sql, query.params)
-                row = _fetch_scalar_row(cursor, query)
+                rows = _fetch_rows(cursor, query)
         except sqlite3.Error as error:
             raise ExecutionError(
                 f"SQLite execution failed / SQLite 执行失败: {error}"
             ) from error
-        return dict(row) if row is not None else {}
+        if query.result_contract.cardinality == GROUPED:
+            return [dict(row) for row in rows]
+        return dict(rows) if rows is not None else {}
 
 
 def _required_environment(
@@ -141,7 +174,9 @@ class MySQLExecutor:
     def from_env(cls) -> "MySQLExecutor":
         return cls(MySQLConfig.from_env())
 
-    def execute(self, query: CompiledQuery) -> dict[str, Any]:
+    def execute(
+        self, query: CompiledQuery
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         connector = self._connector_module or _load_mysql_connector()
         connection = None
         cursor = None
@@ -158,10 +193,18 @@ class MySQLExecutor:
             # unchanged for both SQLite and MySQL.
             cursor = connection.cursor(prepared=True)
             cursor.execute(query.sql, query.params)
-            row = _fetch_scalar_row(cursor, query)
+            rows = _fetch_rows(cursor, query)
+            if query.result_contract.cardinality == GROUPED:
+                return [
+                    {
+                        name: _evidence_value(value)
+                        for name, value in zip(cursor.column_names, row)
+                    }
+                    for row in rows
+                ]
             return {
                 name: _evidence_value(value)
-                for name, value in zip(cursor.column_names, row)
+                for name, value in zip(cursor.column_names, rows)
             }
         except ExecutionError:
             raise

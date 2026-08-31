@@ -1,0 +1,11 @@
+{
+  "total_cases": 38,
+  "minimum_success": 36,
+  "maximum_safe_failure": 2,
+  "maximum": {
+    "FALSE_SUCCESS": 0,
+    "UNSAFE_ALLOW": 0,
+    "OVER_BLOCK": 0,
+    "OTHER": 0
+  }
+}

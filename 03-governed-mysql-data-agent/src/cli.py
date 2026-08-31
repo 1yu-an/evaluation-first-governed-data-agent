@@ -116,6 +116,25 @@ def _concise_answer(result: dict) -> dict:
             "reason": result.get("reason", "unknown failure"),
             "evidence": {},
         }
+    if result.get("result_type") == "grouped":
+        return {
+            "status": "success",
+            "profile_id": result["profile_id"],
+            "metric": result["metric"],
+            "filters": result["filters"],
+            "result_type": "grouped",
+            "group_by": result["group_by"],
+            "time_range": result["time_range"],
+            "order": result["order"],
+            "limit": result["limit"],
+            "rows": result["rows"],
+            "verified": result["verified"],
+            "evidence": {
+                "row_count": result["row_count"],
+                "result_key": result["metric"],
+                "dimension_key": result["group_by"],
+            },
+        }
     return {
         "status": "success",
         "profile_id": result["profile_id"],
@@ -137,6 +156,16 @@ def _result_reason_code(result: dict) -> str:
         return "unknown_metric"
     if "multiple business metrics" in reason:
         return "ambiguous_metric"
+    if "comparison is deferred" in reason:
+        return "unsupported_comparison"
+    if "time range" in reason or "date range" in reason or "month count" in reason:
+        return "invalid_time_filter"
+    if "grouping" in reason or "group-by" in reason:
+        return "unsupported_grouping"
+    if "ranking" in reason or "limit" in reason:
+        return "invalid_ranking"
+    if "unsafe sql-shaped" in reason or "mutation intent" in reason:
+        return "unsafe_input"
     if (
         "unsupported filter" in reason
         or "unsupported region" in reason

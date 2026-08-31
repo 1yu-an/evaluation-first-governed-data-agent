@@ -48,6 +48,36 @@ V2.2 产品化加固还提供：
 安全与托管 CI 证据见
 [`V2_2_HARDENING_REPORT.md`](../V2_2_HARDENING_REPORT.md)。
 
+## V3 Governed Analytical Queries / 受治理分析查询
+
+V3 extends the finite semantic space instead of adding Text-to-SQL. The
+expenses Profile can now declaratively approve a date dimension and one
+groupable category dimension. The typed plan supports one half-open date
+range, one group dimension, metric ascending/descending order, and a limit
+from 1 through 100.
+
+Supported examples include:
+
+    total expenses this month
+    average expense for the past 3 months
+    total expenses between 2026-08-01 and 2026-08-05
+    total expenses by category
+    top 3 expense categories
+    which category has the lowest total expenses?
+
+Dates and limits remain bound parameters. Group/select/order identifiers come
+only from the strictly validated Profile. Grouped execution returns a bounded
+list whose exact columns, row count, value types, finiteness, uniqueness, and
+ordering are verified. Unranked groups use an internal 101-row overflow probe
+so the 100-row contract fails visibly rather than truncating silently.
+
+Comparison is intentionally deferred to V3.1. Comparison, forecasting,
+multiple group dimensions, raw rows, arbitrary arithmetic, writes, and
+SQL-shaped suffixes stop before execution. The evidence-based scope and exact
+implementation contracts are in
+[`V3_ANALYTICS_PRD.md`](../V3_ANALYTICS_PRD.md) and
+[`V3_ANALYTICS_DESIGN.md`](../V3_ANALYTICS_DESIGN.md).
+
 ## Why this is not ordinary Text-to-SQL / 为什么不是普通 Text-to-SQL
 
 普通 Text-to-SQL 的主要目标通常是把开放式语言转换成 SQL。本项目先定义受治理的
@@ -105,12 +135,12 @@ Eval / Benchmark / Regression Gate
 |---|---|---|
 | Domain Profile | 外部声明指标语言、有限维度、表列引用与批准操作 | 不含 raw SQL、凭据、Python hook 或任意表达式 |
 | Governed Resolver | 用所选 Profile 的 canonical forms、aliases 和组合规则选择 metric；歧义时澄清 | 不生成 SQL，不使用 LLM 猜测语义 |
-| SemanticPlan | 显式保存 metric、filters、status、reason | 不包含表名、字段名或 SQL |
+| SemanticPlan | 显式保存 metric、filters、typed time range、group、finite order/limit、status、reason | 不包含表名、字段名或 SQL |
 | Deterministic Compiler | 把 READY plan 和已校验操作编译为模板 SQL 与独立 params | 不读取原始问题，不接受 raw SQL 或 Profile 新增执行代码 |
 | AST SQL Policy | 使用 sqlglot MySQL AST 只允许一条只读 SELECT/CTE 查询 | 不证明查询的业务指标语义正确 |
 | QueryExecutor | 执行 CompiledQuery；SQLite/MySQL 共享同一上游合同 | 不做语义解析或策略改写 |
 | DB least privilege | MySQL runtime 账号只有目标数据库 SELECT 权限 | 不替代应用层 AST Policy |
-| Strict Verification | 验证 exactly-one、预期 key、numeric、finite、non-null | 不独立证明 Compiler SQL 的完整业务语义正确 |
+| Strict Verification | 标量验证 exactly-one；分组验证 exact columns、bounded rows、numeric/finite、unique dimension 与 declared order | 不独立证明 Compiler SQL 的完整业务语义正确 |
 | Eval / Benchmark | 用固定案例测 State、Policy、Verification 与回归变化 | 不声称固定 56 条案例证明普遍安全 |
 
 ### Safety invariants / 安全不变量
@@ -144,6 +174,8 @@ $env:DATA_AGENT_DB_PATH = "expenses.db"
 python -m src.cli validate-profile
 python -m src.cli explain "average expense for transport"
 python -m src.cli ask "total expenses for groceries"
+python -m src.cli ask "total expenses by category"
+python -m src.cli ask "top 2 expense categories"
 ```
 
 如果机器没有 Windows Python Launcher，将 `py -3.12` 替换为 Python 3.12+ 的
@@ -164,6 +196,8 @@ export DATA_AGENT_DB_PATH=expenses.db
 python -m src.cli validate-profile
 python -m src.cli explain "average expense for transport"
 python -m src.cli ask "total expenses for groceries"
+python -m src.cli ask "total expenses by category"
+python -m src.cli ask "top 2 expense categories"
 ```
 
 配置优先级固定为：显式 `--profile` / `--db-path` > 对应环境变量 > 默认
@@ -287,7 +321,7 @@ cd 03-governed-mysql-data-agent
 python -m pytest -q
 ```
 
-当前普通测试结果：`223 passed, 1 skipped, 13 subtests passed`，包含原有 v1 回归
+当前普通测试结果：`307 passed, 1 skipped, 13 subtests passed`，包含原有 v1 回归
 以及新增 Profile/schema/expenses/CLI 覆盖。skip 是显式 opt-in
 的真实 MySQL 模块。
 
@@ -298,7 +332,7 @@ cd 00-agent-eval-harness
 python -m pytest -q
 ```
 
-当前结果：`59 passed`。
+当前结果：`62 passed`。
 
 ### Fixed 56-case system Benchmark
 
@@ -320,6 +354,26 @@ python -m src.integration_benchmark
 
 它们共同构成 3 个 SAFE_FAILURE；最终仍为 `FALSE_SUCCESS=0`、
 `UNSAFE_ALLOW=0`、`OVER_BLOCK=0`。
+
+### Independent V3 Analytics Eval
+
+From Project00 run:
+
+    python -m src.v3_analytics_benchmark --gate
+
+The 38-case corpus is stored under Project03 and is not merged into the fixed
+56. Its current dynamic result is:
+
+    TOTAL=38
+    SUCCESS=36
+    SAFE_FAILURE=2
+    FALSE_SUCCESS=0
+    UNSAFE_ALLOW=0
+    OVER_BLOCK=0
+
+The two safe failures are the explicitly deferred month and category
+comparison requests. Every unsupported and attack-shaped case fails as
+expected without becoming a false success.
 
 ## Automated CI Regression Gate / 自动化持续集成回归门
 

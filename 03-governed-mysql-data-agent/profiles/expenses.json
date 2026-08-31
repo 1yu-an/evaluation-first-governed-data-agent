@@ -26,6 +26,10 @@
   "dimensions": [
     {
       "id": "category",
+      "type": "categorical",
+      "column": "category",
+      "filterable": true,
+      "groupable": true,
       "phrases": {
         "food": "food",
         "groceries": "food",
@@ -41,13 +45,30 @@
     },
     {
       "id": "region",
+      "type": "categorical",
+      "column": null,
+      "filterable": false,
+      "groupable": false,
       "phrases": {},
       "adjacent_labels": ["region"]
     },
     {
       "id": "status",
+      "type": "categorical",
+      "column": null,
+      "filterable": false,
+      "groupable": false,
       "phrases": {},
       "adjacent_labels": ["status"]
+    },
+    {
+      "id": "date",
+      "type": "date",
+      "column": "spent_on",
+      "filterable": true,
+      "groupable": false,
+      "phrases": {},
+      "adjacent_labels": ["date"]
     }
   ],
   "metrics": [
@@ -60,7 +81,9 @@
       "composition_patterns": [
         [["total", "sum"], ["expense", "spending"]]
       ],
-      "allowed_dimensions": ["category"],
+      "allowed_dimensions": ["category", "date"],
+      "allowed_group_by": ["category"],
+      "default_intents": ["group_by", "ranking"],
       "result_key": {"mode": "metric"},
       "operation": {
         "type": "aggregate",
@@ -70,7 +93,10 @@
         "round_digits": 2,
         "coalesce_zero": true,
         "fixed_predicates": [],
-        "filter_bindings": {"category": {"column": "category"}}
+        "filter_bindings": {
+          "category": {"column": "category"},
+          "date": {"column": "spent_on"}
+        }
       }
     },
     {
@@ -82,7 +108,9 @@
       "composition_patterns": [
         [["expense"], ["__count_intent__"]]
       ],
-      "allowed_dimensions": ["category"],
+      "allowed_dimensions": ["category", "date"],
+      "allowed_group_by": ["category"],
+      "default_intents": [],
       "result_key": {"mode": "metric"},
       "operation": {
         "type": "aggregate",
@@ -92,7 +120,10 @@
         "round_digits": null,
         "coalesce_zero": false,
         "fixed_predicates": [],
-        "filter_bindings": {"category": {"column": "category"}}
+        "filter_bindings": {
+          "category": {"column": "category"},
+          "date": {"column": "spent_on"}
+        }
       }
     },
     {
@@ -104,7 +135,9 @@
       "composition_patterns": [
         [["average", "avg", "mean"], ["expense", "spending"]]
       ],
-      "allowed_dimensions": ["category"],
+      "allowed_dimensions": ["category", "date"],
+      "allowed_group_by": ["category"],
+      "default_intents": [],
       "result_key": {"mode": "metric"},
       "operation": {
         "type": "aggregate",
@@ -114,7 +147,10 @@
         "round_digits": 2,
         "coalesce_zero": false,
         "fixed_predicates": [],
-        "filter_bindings": {"category": {"column": "category"}}
+        "filter_bindings": {
+          "category": {"column": "category"},
+          "date": {"column": "spent_on"}
+        }
       }
     }
   ]

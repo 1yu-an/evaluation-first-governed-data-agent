@@ -13,12 +13,22 @@ from .profile import (
     MetricDefinition,
     load_default_profile,
 )
-from .semantic import PLAN_READY, SemanticPlan
+from .semantic import (
+    ORDER_METRIC_ASC,
+    ORDER_METRIC_DESC,
+    PLAN_READY,
+    DateRange,
+    SemanticPlan,
+)
 from .verification import ResultContract
 
 
 class CompileError(ValueError):
     """Raised when a structured plan cannot be compiled without losing meaning."""
+
+
+MAX_GROUPED_ROWS = 100
+GROUPED_OVERFLOW_LIMIT = MAX_GROUPED_ROWS + 1
 
 
 @dataclass(frozen=True)
@@ -90,6 +100,8 @@ def _compile_aggregate(
     definition: MetricDefinition,
     operation: AggregateOperation,
     filters: dict[str, str],
+    plan: SemanticPlan,
+    profile: DomainProfile,
 ) -> CompiledQuery:
     result_metric, contract = _result_parts(definition, filters)
     predicates = [
@@ -100,8 +112,50 @@ def _compile_aggregate(
     for field, value in filters.items():
         predicates.append(f"{operation.filter_bindings[field].column}=?")
         params.append(value)
+    if plan.time_range is not None:
+        binding = operation.filter_bindings[plan.time_range.dimension]
+        predicates.extend((f"{binding.column}>=?", f"{binding.column}<?"))
+        params.extend(
+            (
+                plan.time_range.start_inclusive.isoformat(),
+                plan.time_range.end_exclusive.isoformat(),
+            )
+        )
+    expression = _aggregate_expression(operation)
+    if plan.group_by is not None:
+        dimension = profile.dimensions[plan.group_by]
+        dimension_column = dimension.column
+        if dimension_column is None:
+            raise CompileError("group-by dimension has no approved column")
+        if plan.order == ORDER_METRIC_DESC:
+            order_clause = f" ORDER BY {definition.metric_id} DESC, {plan.group_by} ASC"
+        elif plan.order == ORDER_METRIC_ASC:
+            order_clause = f" ORDER BY {definition.metric_id} ASC, {plan.group_by} ASC"
+        else:
+            order_clause = f" ORDER BY {plan.group_by} ASC"
+        sql_limit = plan.limit if plan.limit is not None else GROUPED_OVERFLOW_LIMIT
+        sql = (
+            f"SELECT {dimension_column} AS {plan.group_by}, "
+            f"{expression} AS {definition.metric_id} "
+            f"FROM {operation.source.table}{_where(predicates)} "
+            f"GROUP BY {dimension_column}{order_clause} LIMIT ?"
+        )
+        params.append(sql_limit)
+        contract = ResultContract.grouped_numeric(
+            expected_key=result_metric,
+            dimension_key=plan.group_by,
+            max_rows=MAX_GROUPED_ROWS,
+            requested_limit=plan.limit,
+            order=plan.order or "dimension_asc",
+        )
+        return CompiledQuery(
+            sql=sql,
+            result_metric=result_metric,
+            result_contract=contract,
+            params=tuple(params),
+        )
     sql = (
-        f"SELECT {_aggregate_expression(operation)} AS {definition.metric_id} "
+        f"SELECT {expression} AS {definition.metric_id} "
         f"FROM {operation.source.table}{_where(predicates)}"
     )
     return CompiledQuery(
@@ -161,6 +215,63 @@ def _compile_difference(
     return CompiledQuery(sql, result_metric, contract, params)
 
 
+def _validate_analytics(
+    plan: SemanticPlan,
+    definition: MetricDefinition,
+    profile: DomainProfile,
+) -> None:
+    if plan.time_range is not None:
+        if not isinstance(plan.time_range, DateRange):
+            raise CompileError("invalid time range shape / 无效的时间范围形状")
+        dimension_id = plan.time_range.dimension
+        dimension = profile.dimensions.get(dimension_id)
+        if (
+            dimension is None
+            or dimension.dimension_type != "date"
+            or not dimension.filterable
+            or dimension_id not in definition.allowed_filters
+        ):
+            raise CompileError("unsupported time dimension / 不支持的时间维度")
+        binding = getattr(definition.operation, "filter_bindings", {}).get(
+            dimension_id
+        )
+        if binding is None or binding.column != dimension.column:
+            raise CompileError("time dimension binding mismatch / 时间维度绑定不匹配")
+        if plan.time_range.start_inclusive >= plan.time_range.end_exclusive:
+            raise CompileError("time range must be non-empty / 时间范围必须非空")
+    if plan.group_by is None:
+        if plan.order is not None or plan.limit is not None:
+            raise CompileError("ranking requires group-by / 排名需要分组")
+        return
+    if (
+        not isinstance(plan.group_by, str)
+        or plan.group_by not in definition.allowed_group_by
+    ):
+        raise CompileError("unsupported group-by dimension / 不支持的分组维度")
+    dimension = profile.dimensions.get(plan.group_by)
+    if dimension is None or not dimension.groupable or dimension.column is None:
+        raise CompileError("group-by dimension is not approved / 分组维度未获批准")
+    if not isinstance(definition.operation, AggregateOperation):
+        raise CompileError("metric does not support grouping / 指标不支持分组")
+    binding = definition.operation.filter_bindings.get(plan.group_by)
+    if binding is None or binding.column != dimension.column:
+        raise CompileError("group-by binding mismatch / 分组绑定不匹配")
+    if plan.order not in {None, ORDER_METRIC_ASC, ORDER_METRIC_DESC}:
+        raise CompileError("unsupported ranking order / 不支持的排名顺序")
+    if plan.limit is not None and (
+        isinstance(plan.limit, bool)
+        or not isinstance(plan.limit, int)
+        or not 1 <= plan.limit <= MAX_GROUPED_ROWS
+    ):
+        raise CompileError(
+            f"ranking limit must be between 1 and {MAX_GROUPED_ROWS} / 排名数量超出范围"
+        )
+    if plan.order is None and plan.limit is not None:
+        raise CompileError("limit requires ranking order / 限制数量需要排名顺序")
+    if plan.order is not None and plan.limit is None:
+        raise CompileError("ranking order requires limit / 排名顺序需要数量")
+
+
 CompilerFunction = Callable[..., CompiledQuery]
 STRATEGY_COMPILERS: Mapping[CompilerStrategy, CompilerFunction] = MappingProxyType(
     {
@@ -185,9 +296,15 @@ def compile_plan(
     if not isinstance(plan.filters, dict):
         raise CompileError("invalid filters shape / 无效的过滤条件形状")
     filters = _validated_filters(plan, definition, selected)
+    _validate_analytics(plan, definition, selected)
     operation = definition.operation
     if isinstance(operation, AggregateOperation):
-        return _compile_aggregate(definition, operation, filters)
+        return _compile_aggregate(definition, operation, filters, plan, selected)
     if isinstance(operation, DifferenceOfSumsOperation):
+        if any(
+            value is not None
+            for value in (plan.time_range, plan.group_by, plan.order, plan.limit)
+        ):
+            raise CompileError("metric does not support analytics / 指标不支持分析字段")
         return _compile_difference(definition, operation, filters)
     raise CompileError(f"unsupported compiler operation: {type(operation).__name__}")
