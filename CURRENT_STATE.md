@@ -16,6 +16,11 @@ evaluation-first governed data-agent prototype with deterministic semantics,
 fail-closed behavior, AST SQL policy, least-privilege execution, strict result
 contracts, and a fixed external Benchmark.
 
+Core Agent remains frozen. A thin same-origin FastAPI and local HTML/CSS/JavaScript
+presentation layer has been added for reproducible Windows interview demonstration.
+It delegates questions to the existing `DataAgent` and does not own semantic
+resolution, SQL compilation, policy, database access, or verification.
+
 ## Final architecture
 
 ```text

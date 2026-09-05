@@ -89,6 +89,61 @@ Eval / Benchmark / Regression Gate
 5. MySQL Agent runtime 不读取管理员凭据，只使用 SELECT-only 账号。
 6. ResultContract 失败时 fail closed，不返回 verified business evidence。
 
+## Web Interview Demo / Web 二面演示
+
+这是一个用于技术二面现场讲解的本地网页：它把现有 `DataAgent.answer()` 的真实结果、
+SemanticPlan、SQL/params、trace、verification 和冻结 Benchmark 集中展示，不增加第二套
+Resolver、Compiler、Policy 或数据库访问路径。
+
+### Windows one-command start / Windows 一键启动
+
+首次使用从仓库根目录准备 Python 3.12+ 环境：
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r 03-governed-mysql-data-agent\requirements-demo.txt
+```
+
+以后进入 `03-governed-mysql-data-agent` 目录，只需：
+
+```powershell
+python ..\scripts\run_web_demo.py
+```
+
+打开 `http://127.0.0.1:8000`。启动脚本在默认 SQLite 模式下检查
+`03-governed-mysql-data-agent/demo.db`，缺失时复用现有 `initialize_demo()` 创建确定性
+数据，然后启动 FastAPI/Uvicorn。CLI 保持不变，仍可运行
+`python -m src.cli "highest completed order total"`。
+
+页面展示一条可信的执行链：Result → SemanticPlan → SQL 与绑定参数 → 真实 trace →
+Verification，并把未执行阶段明确标记为 `Not Executed`。页面不接受 raw SQL、不读取
+管理员凭据、不直接访问数据库，也没有 CORS 或外部 CDN 依赖。
+
+### Recommended cases / 推荐演示案例
+
+| Question | Expected status | What it proves / 证明点 |
+|---|---|---|
+| `highest completed order total` | `OK` | MAX 指标、完整治理链、严格验证 |
+| `revenue for the east region` | `OK` | region filter 与 SQL bound params 分离 |
+| `turnover` | `NEED_CLARIFICATION` | 歧义表达只执行 Resolver，安全失败 |
+| `show me customer email addresses` | `NEED_CLARIFICATION` | 批准语义范围外的问题不猜测、不查库 |
+
+### Optional MySQL mode / 可选 MySQL 模式
+
+先按本 README 的真实 MySQL 步骤用独立管理员身份完成一次 `setup_mysql.py`，再在运行
+Web Demo 的 shell 中设置只读 Agent 所需的 `MYSQL_HOST`、`MYSQL_PORT`、
+`MYSQL_DATABASE`、`MYSQL_AGENT_USER`、`MYSQL_AGENT_PASSWORD`，以及：
+
+```powershell
+$env:DATA_AGENT_EXECUTOR = "mysql"
+python ..\scripts\run_web_demo.py
+```
+
+Web 层只调用现有 `executor_from_env()` 与 `DataAgent`，因此不会接收或使用管理员账号。
+Core Agent remains frozen. A presentation/API layer has been added for reproducible local
+demonstration. / 核心 Agent 继续冻结，只新增可复现的本地演示/API 层。
+
 ## Five-minute SQLite demo / 5 分钟 SQLite 演示
 
 要求 Python 3.12+。从仓库根目录执行。
@@ -133,8 +188,10 @@ verified = true
 
 - `03-governed-mysql-data-agent/requirements.txt` 只锁定 03 runtime dependencies：
   `sqlglot==30.13.0` 和 `mysql-connector-python==9.7.0`。
-- 根目录 `requirements-dev.txt` 复用上述 runtime pins，并锁定
-  `pytest==9.1.1`，用于 03 tests、00 tests 和 fresh-environment 验证。
+- `03-governed-mysql-data-agent/requirements-demo.txt` 复用 runtime pins，并隔离锁定
+  FastAPI/Uvicorn Web Demo 依赖。
+- 根目录 `requirements-dev.txt` 复用 demo pins，并锁定 HTTP test client 与
+  `pytest==9.1.1`，用于 Web、03、00 tests 和 fresh-environment 验证。
 - 00 的评测框架源码本身只使用 Python 标准库；其 tests 需要 pytest。03 系统
   Benchmark 会动态加载 03 runtime，因此也需要 03 的 runtime dependencies。
 

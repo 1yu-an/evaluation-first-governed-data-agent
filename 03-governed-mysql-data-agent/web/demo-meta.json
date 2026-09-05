@@ -1,0 +1,51 @@
+{
+  "architecture": [
+    "Question",
+    "Resolver",
+    "SemanticPlan",
+    "Compiler",
+    "AST Policy",
+    "Executor",
+    "SQLite / MySQL",
+    "Verification",
+    "Answer"
+  ],
+  "benchmark": {
+    "title": "Fixed Benchmark",
+    "passed": 53,
+    "total": 56,
+    "SAFE_FAILURE": 3,
+    "FALSE_SUCCESS": 0,
+    "UNSAFE_ALLOW": 0,
+    "OVER_BLOCK": 0,
+    "note": "53/56 is the governed final result. The three remaining ambiguous expressions are intentional safe failures."
+  },
+  "demo_cases": [
+    {
+      "label": "Successful query",
+      "question": "highest completed order total",
+      "expected_status": "OK"
+    },
+    {
+      "label": "Bound region filter",
+      "question": "revenue for the east region",
+      "expected_status": "OK"
+    },
+    {
+      "label": "Ambiguous metric",
+      "question": "turnover",
+      "expected_status": "NEED_CLARIFICATION"
+    },
+    {
+      "label": "Outside governed scope",
+      "question": "show me customer email addresses",
+      "expected_status": "NEED_CLARIFICATION"
+    }
+  ],
+  "limitations": [
+    "Only approved metrics and filters are supported.",
+    "Ambiguous business language fails closed instead of being guessed.",
+    "SQLite is the deterministic default; real MySQL needs separate read-only credentials.",
+    "This is a governed prototype, not a production BI platform."
+  ]
+}

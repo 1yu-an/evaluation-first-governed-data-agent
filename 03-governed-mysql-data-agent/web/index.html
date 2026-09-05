@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Local interview demo for the governed data agent">
+    <title>Governed MySQL Data Agent</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div>
+        <p class="eyebrow">Evaluation-first · Fail-closed · Read-only</p>
+        <h1>Governed MySQL Data Agent</h1>
+        <p class="lede">Not open-ended Text-to-SQL: a constrained, verifiable data-query agent that fails safely when business meaning is unclear.</p>
+      </div>
+      <div class="service-state" aria-live="polite">
+        <span class="pulse" id="health-dot"></span>
+        <span id="health-text">Checking local service…</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="console panel" aria-labelledby="query-title">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">01 · Query console</p>
+            <h2 id="query-title">Ask a business question</h2>
+          </div>
+          <span class="mode-chip" id="executor-mode">executor · —</span>
+        </div>
+        <form id="query-form">
+          <label class="sr-only" for="question">Business question</label>
+          <div class="input-row">
+            <input id="question" name="question" maxlength="500" autocomplete="off" value="highest completed order total" required>
+            <button id="run-button" type="submit">Run Query</button>
+          </div>
+        </form>
+        <div class="quick-cases" id="quick-cases" aria-label="Quick demo cases"></div>
+      </section>
+
+      <section class="result-layout" aria-live="polite">
+        <article class="panel result-panel">
+          <div class="section-heading compact">
+            <div>
+              <p class="section-kicker">02 · Result</p>
+              <h2>Verified business evidence</h2>
+            </div>
+            <span class="status idle" id="result-status">READY</span>
+          </div>
+          <dl class="fact-grid">
+            <div><dt>Metric</dt><dd id="metric">—</dd></div>
+            <div><dt>Verified</dt><dd id="verified">—</dd></div>
+            <div><dt>Executor</dt><dd id="executor">—</dd></div>
+            <div><dt>Policy</dt><dd id="policy">—</dd></div>
+          </dl>
+          <div class="evidence-block">
+            <span class="field-label">Evidence</span>
+            <pre id="evidence">Run a query to inspect evidence.</pre>
+          </div>
+          <p class="reason" id="reason">The UI displays the DataAgent response without inventing missing fields.</p>
+        </article>
+
+        <article class="panel trace-panel">
+          <div class="section-heading compact">
+            <div>
+              <p class="section-kicker">03 · Execution trace</p>
+              <h2>What actually ran</h2>
+            </div>
+          </div>
+          <ol class="trace" id="trace"></ol>
+        </article>
+      </section>
+
+      <section class="inspection-grid">
+        <article class="panel code-panel">
+          <p class="section-kicker">04 · Semantic plan</p>
+          <h2>Resolved meaning</h2>
+          <pre id="semantic-plan">Not executed.</pre>
+        </article>
+        <article class="panel code-panel">
+          <p class="section-kicker">05 · SQL &amp; parameters</p>
+          <h2>Structure separated from values</h2>
+          <span class="field-label">SQL</span>
+          <pre id="sql">Not compiled.</pre>
+          <span class="field-label">Bound parameters</span>
+          <pre id="params">Not compiled.</pre>
+        </article>
+      </section>
+
+      <details class="panel raw-panel">
+        <summary>Raw API response</summary>
+        <pre id="raw-response">No response yet.</pre>
+      </details>
+
+      <section class="evidence-layout">
+        <article class="panel benchmark-panel">
+          <p class="section-kicker">06 · Safety evidence</p>
+          <div class="benchmark-title">
+            <h2>Fixed Benchmark</h2>
+            <strong id="benchmark-score">— / —</strong>
+          </div>
+          <div class="benchmark-grid" id="benchmark-grid"></div>
+          <p id="benchmark-note"></p>
+        </article>
+        <article class="panel limitations-panel">
+          <p class="section-kicker">Declared boundaries</p>
+          <h2>What this demo does not claim</h2>
+          <ul id="limitations"></ul>
+        </article>
+      </section>
+
+      <section class="panel architecture-panel">
+        <p class="section-kicker">07 · Architecture</p>
+        <h2>One governed path from question to answer</h2>
+        <div class="architecture" id="architecture"></div>
+      </section>
+    </main>
+
+    <footer>Local-only presentation layer · Existing governed core remains authoritative</footer>
+  </body>
+</html>

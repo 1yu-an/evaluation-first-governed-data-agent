@@ -244,7 +244,11 @@ def test_fixture_quality_and_rejects_a_precomputed_actual(tmp_path):
 
 
 def test_fixed_integration_eval_set_integrity():
-    assert hashlib.sha256(CASES_PATH.read_bytes()).hexdigest().upper() == (
+    # Git for Windows may materialize text files with CRLF even when the index
+    # stores LF. Normalize only that transport-level difference so the fixed
+    # content hash remains portable without changing any Eval Set case.
+    canonical_bytes = CASES_PATH.read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(canonical_bytes).hexdigest().upper() == (
         FIXED_CASES_SHA256
     )
 

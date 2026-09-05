@@ -1,2 +1,3 @@
--r 03-governed-mysql-data-agent/requirements.txt
+-r 03-governed-mysql-data-agent/requirements-demo.txt
+httpx2==2.12.0
 pytest==9.1.1

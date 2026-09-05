@@ -17,6 +17,13 @@
 03 README 是该项目面向 reviewer 的权威入口；`CURRENT_STATE.md` 只记录简洁的
 仓库状态快照。
 
+## Live Local Web Demo / 本地网页演示
+
+安装依赖后，从仓库根目录运行 `python scripts/run_web_demo.py`，再打开
+`http://127.0.0.1:8000`。该同源网页仅为 Project 03 的展示/API 适配层，所有业务问题
+仍由冻结的 `DataAgent` 治理链处理。完整环境准备与演示流程见
+[Project 03 README](03-governed-mysql-data-agent/README.md#web-interview-demo--web-二面演示)。
+
 ## Projects / 项目
 
 | ID | Project | Core proof / 核心能力证明 | Suggested time / 建议投入 |
